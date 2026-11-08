@@ -1,0 +1,175 @@
+---
+import Gap from '../Gap.astro';
+import { films } from '../../data/mission';
+import { gems } from '../../lib/gems';
+
+const film = films.ep2;
+
+// 24 planets on a fixed layout, so the route always lands on them. Percent of the stage.
+// Size is in vmin; each kind is a different surface in film.css. Fixed, so every run shows the same solar system.
+const planets = ([
+  [8, 22, 13, 'ringed'], [17, 58, 5, 'rock'], [14, 84, 7, 'ocean'], [25, 32, 3.5, 'rock'], [30, 72, 4.5, 'lava'], [36, 14, 8, 'gas'], [40, 50, 3, 'ice'], [44, 88, 3.5, 'rock'],
+  [50, 26, 4, 'ocean'], [54, 64, 5, 'gas'], [58, 10, 3.5, 'ice'], [62, 42, 3, 'rock'], [66, 82, 6.5, 'lava'], [70, 20, 4.5, 'rock'], [74, 56, 3, 'ocean'], [78, 90, 5, 'gas'],
+  [82, 34, 11, 'ocean'], [86, 68, 5, 'ice'], [90, 14, 6, 'lava'], [93, 46, 3.5, 'rock'], [5, 44, 4, 'ice'], [34, 94, 3, 'rock'], [47, 40, 3.5, 'lava'], [96, 84, 8, 'ringed'],
+] as [number, number, number, string][]).map(([x, y, s, kind], i) => ({ x, y, s, kind, i, tilt: ((i * 37) % 50) - 25, moon: i === 16 || i === 5 }));
+const route = [20, 0, 3, 5, 8, 22, 6, 1, 4, 9, 11, 10, 13, 16, 14, 17, 19, 18];
+const routeLines = route.slice(1).map((p, n) => ({ a: planets[route[n]], b: planets[p], n }));
+const stop = (i: number) => route.indexOf(i);
+// The ship flies the same route the line draws. The time per leg matches --leg in film.css.
+const flight = route
+  .map((p, n) => `${((n / (route.length - 1)) * 100).toFixed(2)}%{left:${planets[p].x}%;top:${planets[p].y}%}`)
+  .join('');
+const stars = Array.from({ length: 110 }, (_, i) => ({
+  i,
+  x: ((i * 73) % 1000) / 10,
+  y: ((i * 137) % 1000) / 10,
+  r: i % 9 === 0 ? 0.3 : i % 4 === 0 ? 0.2 : 0.13,
+}));
+// Six teams of twenty, arranged as sunflowers: 120 dots that are really 120 dots.
+const teams = Array.from({ length: 6 }, (_, t) => ({
+  t,
+  dots: Array.from({ length: 20 }, (_, i) => {
+    const r = 9 * Math.sqrt(i + 0.5);
+    const a = i * 2.39996;
+    return { cx: 50 + r * Math.cos(a), cy: 50 + r * Math.sin(a), n: t * 20 + i };
+  }),
+}));
+const slips = Array.from({ length: 14 }, (_, i) => ({
+  i,
+  x: Math.round(Math.cos(i * 1.7) * 38),
+  y: -Math.round(22 + ((i * 37) % 26)),
+  r: (i * 53) % 90 - 45,
+}));
+---
+<div class="film-stage f2" data-film="ep2" hidden>
+  <style is:inline set:html={`@keyframes f2Fly{${flight}}`}></style>
+  <div class="f2-space" aria-hidden="true">
+    <svg class="f2-stars" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {stars.map((s) => <circle class:list={[{ twinkle: s.i % 6 === 0 }]} cx={s.x} cy={s.y} r={s.r} style={`--i:${s.i % 7}`} />)}
+    </svg>
+    <i class="f2-comet"></i>
+    <svg class="f2-route" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {routeLines.map((l) => (
+        <line x1={l.a.x} y1={l.a.y} x2={l.b.x} y2={l.b.y} pathLength="1" style={`--n:${l.n}`} />
+      ))}
+    </svg>
+    {planets.map((p) => (
+      <i class:list={['f2-planet', `k-${p.kind}`, { 'on-route': stop(p.i) >= 0 }]} style={`--x:${p.x};--y:${p.y};--i:${p.i};--s:${p.s};--tilt:${p.tilt}deg;--stop:${Math.max(0, stop(p.i))}`}>
+        {p.moon && <b class="f2-moon"></b>}
+      </i>
+    ))}
+    <i class="f2-ship"></i>
+    <div class="f2-stones">
+      {gems.map((g, i) => (
+        <svg class="f2-stone" viewBox="-1.1 -1.1 2.2 2.2" style={`--i:${i};--glow:${g.glow}`}>
+          <defs>
+            <radialGradient id={`f2Sheen${i}`} cx="30%" cy="22%" r="85%">
+              <stop offset="0" stop-color="#fff" stop-opacity=".42" />
+              <stop offset=".45" stop-color="#fff" stop-opacity="0" />
+              <stop offset="1" stop-color="#000" stop-opacity=".45" />
+            </radialGradient>
+          </defs>
+          {g.facets.map((f) => <path d={f.d} fill={f.fill} stroke={f.fill} stroke-width=".008" />)}
+          {g.facets.filter((f) => f.flash).map((f, n) => <path class="f2-flash" d={f.d} style={`--n:${n}`} />)}
+          <path d={g.outline} fill={`url(#f2Sheen${i})`} />
+          <path class="f2-girdle" d={g.outline} />
+          <path class="f2-glint" d="M0-.5Q.03-.03.5 0 .03.03 0 .5-.03.03-.5 0-.03-.03 0-.5Z" style={`--gx:${g.glint[0]}px;--gy:${g.glint[1]}px`} />
+        </svg>
+      ))}
+    </div>
+  </div>
+
+  <div class="f2-teams" aria-hidden="true">
+    {teams.map((team) => (
+      <svg class="f2-team" viewBox="0 0 100 100">
+        {team.dots.map((d) => <circle cx={d.cx} cy={d.cy} r="5" style={`--n:${d.n}`} />)}
+      </svg>
+    ))}
+  </div>
+
+  <div class="f2-hud" aria-hidden="true">
+    <p class="f2-hud-title">{film.hud.stones}</p>
+    <p class="f2-hud-count"><span class="f2-hud-digit"></span> / 6</p>
+  </div>
+
+  <div class="f2-card f2-b1" aria-hidden="true">
+    {film.numbers.map((n, i) => (
+      <p class="f2-slam" style={`--i:${i}`}><b>{n.value}</b> <span>{n.label}</span></p>
+    ))}
+  </div>
+
+  <div class="f2-card f2-b2" aria-hidden="true">
+    {film.crowd.map((n, i) => (
+      <p class="f2-slam f2-slam-s" style={`--i:${i}`}><b>{n.value}</b> <span>{n.label}</span></p>
+    ))}
+  </div>
+
+  <div class="f2-card f2-b4" aria-hidden="true">
+    <div class="f2-jar">
+      {slips.map((s) => <i class="f2-slip" style={`--x:${s.x};--y:${s.y};--r:${s.r}deg;--i:${s.i}`}></i>)}
+      <svg viewBox="0 0 120 150">
+        <path d="M34 8h52M40 8v22c0 10-26 20-26 50v44c0 12 8 18 18 18h56c10 0 18-6 18-18V80c0-30-26-40-26-50V8" />
+      </svg>
+      <p class="f2-jar-count"><b>{film.jarCount}</b> <span>{film.jarLabel}</span></p>
+      {film.jarDraws.map((d, i) => <p class={`f2-pop ${d.tone}`} style={`--i:${i}`}><b>{d.sign}</b> {d.text}</p>)}
+    </div>
+    <p class="f2-jar-title">{film.jarTitle}</p>
+    <ul class="f2-stakes">
+      {film.jarStakes.map((s, i) => <li style={`--i:${i}`}><b>{s.name}</b> <span>{s.note}</span></li>)}
+    </ul>
+  </div>
+
+  <div class="f2-card f2-b8" aria-hidden="true">
+    <p class="f2-alarm">{film.alarm.top}</p>
+    <p class="f2-twist-kicker">{film.alarm.status}</p>
+    <p class="f2-twist-title">{film.twist.title}</p>
+    <div class="f2-cells">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div class="f2-cell" style={`--i:${i}`}>
+          <svg viewBox="0 0 40 52"><circle cx="20" cy="18" r="9" /><path d="M5 52c0-15 7-22 15-22s15 7 15 22z" /></svg>
+          <i class="f2-bars"></i>
+          <span>{film.cells.label} {i + 1}</span>
+        </div>
+      ))}
+    </div>
+    {film.twist.lines.map((line, i) => <p class="f2-twist-line" style={`--i:${i}`}>{line}</p>)}
+  </div>
+
+  <div class="f2-card f2-b5" aria-hidden="true">
+    {film.threeWords.map((w, i) => <p class="f2-word" style={`--i:${i}`}><span>{w}</span></p>)}
+  </div>
+
+  <div class="f2-card f2-b6" aria-hidden="true">
+    <div class="f2-spot"></div>
+    <p class="f2-star-kicker">{film.starring.kicker}</p>
+    <p class="f2-star-name">{film.starring.name}</p>
+    <p class="f2-star-alias">{film.starring.alias}</p>
+  </div>
+
+  <div class="f2-card f2-b7" aria-hidden="true">
+    <p class="f2-call">{film.call}</p>
+    <p class="f2-reply">{film.reply}</p>
+  </div>
+
+  <div class="f2-comms" aria-hidden="true">
+    <p class="f2-comms-top"><i></i>{film.comms.live}</p>
+    <div class="f2-comms-face">
+      {film.comms.face
+        ? <img src={film.comms.face} alt="" />
+        : <svg viewBox="0 0 100 100"><circle cx="50" cy="38" r="20" /><path d="M12 100c0-30 18-42 38-42s38 12 38 42z" /></svg>}
+      <i class="f2-scan"></i>
+    </div>
+    <p class="f2-comms-name">{film.comms.name} <span>{film.comms.label}</span></p>
+    <div class="f2-voice">{Array.from({ length: 9 }, (_, i) => <i style={`--i:${i}`}></i>)}</div>
+  </div>
+
+  <div class="film-end f2-end" hidden>
+    <p class="film-end-hint">{film.drawHint}</p>
+    <h3 class="film-end-title">{film.drawTitle}</h3>
+    <div class="f2-draw" id="f2Draw" hidden>
+      <p class="f2-draw-label">{film.drawSlip}</p>
+      <p class="f2-draw-text" id="f2DrawText"></p>
+      <p class="f2-draw-gap">{film.effects.length === 0 && <Gap label="skutečné efekty z Nádoby" />}</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,104 @@
+---
+import Gap from './Gap.astro';
+import { episodes } from '../data/mission';
+
+const fields = [
+  { key: 'brief', label: 'Zadání' },
+  { key: 'wentWrong', label: 'Co se pokazilo' },
+  { key: 'action', label: 'Co jsem udělal' },
+  { key: 'result', label: 'Jak to dopadlo' },
+] as const;
+---
+{episodes.map((ep) => (
+  <dialog class="spis" id={`spis-${ep.film}`} aria-labelledby={`spis-title-${ep.film}`} style={`--accent:${ep.accent}`}>
+    <header class="slate">
+      <span>{ep.code}</span>
+      <span class="slate-stripes" aria-hidden="true"></span>
+      <span>Spis dílu</span>
+    </header>
+
+    <div class="spis-body" tabindex="0">
+      <div class="spis-head">
+        <p class="spis-genre">{ep.genre}</p>
+        <h3 class="spis-title" id={`spis-title-${ep.film}`}>{ep.title}</h3>
+        <p class="spis-meta">{ep.meta ?? <Gap label="kde, kdy, v jaké roli" />}</p>
+        <span class="stamp spis-stamp" aria-hidden="true">{ep.stamp}</span>
+      </div>
+
+      <dl class="spis-fields">
+        {/* "Co se pokazilo" stays out of the file until Honza fills it in (HONZA_UKOLY.md). */}
+        {fields.filter((f) => f.key !== 'wentWrong' || ep.wentWrong).map((f) => (
+          <div>
+            <dt>{f.label}</dt>
+            <dd>{ep[f.key] ?? <Gap label={f.label.toLowerCase()} />}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {ep.bonus && <p class="spis-bonus"><strong>Bonus:</strong> {ep.bonus}</p>}
+
+      {ep.evidence && (
+        <figure class="spis-evidence">
+          <img src={ep.evidence.src} alt="" loading="lazy" />
+          <figcaption>{ep.evidence.caption}</figcaption>
+        </figure>
+      )}
+    </div>
+
+    <footer class="spis-foot">
+      <button type="button" class="spis-play" data-play={ep.film}>▶ Přehrát díl</button>
+      <button type="button" class="spis-close" data-spis-close>Zavřít spis</button>
+    </footer>
+  </dialog>
+))}
+
+<script>
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function shut(dialog: HTMLDialogElement, animate = true) {
+    if (!animate || calm) {
+      dialog.close();
+      return;
+    }
+    dialog.classList.add('closing');
+    // A timer, not animationend: a background tab may never finish the animation.
+    setTimeout(() => {
+      dialog.classList.remove('closing');
+      dialog.close();
+    }, 340);
+  }
+
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+
+    const opener = target.closest<HTMLElement>('[data-spis]');
+    if (opener) {
+      const dialog = document.getElementById(`spis-${opener.dataset.spis}`) as HTMLDialogElement | null;
+      if (dialog) {
+        dialog.showModal();
+        dialog.querySelector<HTMLElement>('.spis-body')?.scrollTo(0, 0);
+      }
+      return;
+    }
+
+    const open = target.closest<HTMLDialogElement>('dialog.spis');
+    if (!open) return;
+    if (target.closest('[data-spis-close]')) shut(open);
+    // The film sits in the page, under the top layer, so the file must already be gone.
+    else if (target.closest('[data-play]')) shut(open, false);
+    // A click on the backdrop lands on the dialog itself.
+    else if (target === open) {
+      const r = open.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!inside) shut(open);
+    }
+  });
+
+  // Esc closes with the same slow exit.
+  document.querySelectorAll<HTMLDialogElement>('dialog.spis').forEach((dialog) => {
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      shut(dialog);
+    });
+  });
+</script>

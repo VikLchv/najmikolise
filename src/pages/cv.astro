@@ -1,0 +1,236 @@
+---
+import '@fontsource/anton/400.css';
+import '@fontsource/caveat-brush/400.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import { cvSheet as cv, civil, honest, contact } from '../data/mission';
+---
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Jan Kolátor, CV</title>
+    <style is:global>
+      :root {
+        --ink: #0d0b09; --ink-3: #211c17; --paper: #e9e1cf; --paper-2: #dfd5be; --paper-ink: #1d1813;
+        --chalk: #efe8d6; --muted: #a89d8e; --quiet: #5e5344; --torch: #f4c15d; --amber: #9a6a12; --seal: #a2301c;
+        --rule: rgba(29, 24, 19, .24);
+        --display: 'Anton', 'Arial Narrow', sans-serif;
+        --mono: 'IBM Plex Mono', ui-monospace, monospace;
+        --sans: 'IBM Plex Sans', system-ui, sans-serif;
+      }
+      @page { size: A4; margin: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html { background: #2a2520; }
+      body { font-family: var(--sans); font-size: 8.7pt; line-height: 1.33; color: var(--paper-ink); }
+      ol, ul { list-style: none; }
+
+      .sheet {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto auto auto 1fr auto;
+        width: 210mm;
+        height: 297mm;
+        margin-inline: auto;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      /* Header: the cold open on paper */
+      .top {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 54mm;
+        gap: 8mm;
+        padding: 9mm 12mm 7mm;
+        background:
+          radial-gradient(circle at 22% 62%, rgba(244, 193, 93, .24) 0, rgba(244, 193, 93, 0) 62mm),
+          var(--ink);
+        color: var(--chalk);
+      }
+      .kicker { font-family: var(--mono); font-size: 7.6pt; letter-spacing: .08em; text-transform: uppercase; color: var(--torch); }
+      .name {
+        margin-top: 2mm;
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: 50pt;
+        line-height: 1.04;
+        text-transform: uppercase;
+      }
+      .alias { color: var(--torch); font-size: 15pt; letter-spacing: .02em; }
+      .lead { max-width: 118mm; margin-top: 2mm; font-size: 9.6pt; line-height: 1.36; }
+      .contact { align-self: end; font-family: var(--mono); font-size: 8.2pt; line-height: 1.6; }
+      .contact a { color: inherit; text-decoration: none; }
+      .contact .city { color: var(--muted); }
+      .stamp {
+        position: absolute;
+        top: 9mm;
+        right: 12mm;
+        padding: .8mm 2mm;
+        border: .5mm solid #c8452f;
+        color: #e0644e;
+        font-family: var(--mono);
+        font-size: 7.4pt;
+        font-weight: 500;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        transform: rotate(5deg);
+      }
+
+      .slate { height: 3.4mm; background: repeating-linear-gradient(115deg, var(--chalk) 0 7mm, var(--ink) 7mm 14mm); }
+
+      .stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 3.4mm 12mm 3mm; background: var(--paper-2); }
+      .stats div + div { padding-left: 4mm; border-left: .25mm solid var(--rule); }
+      .stats dd { font-family: var(--display); font-size: 21pt; line-height: 1.1; }
+      .stats dt { font-size: 7.6pt; color: var(--quiet); }
+      .stats div { display: flex; flex-direction: column; }
+      .stats dd { order: -1; }
+
+      /* Body */
+      .body { display: grid; grid-template-columns: 1fr 58mm; gap: 7mm; min-height: 0; padding: 4.5mm 12mm 3mm; }
+      .h {
+        display: flex;
+        align-items: baseline;
+        gap: 3mm;
+        padding-bottom: 1mm;
+        border-bottom: .5mm solid var(--paper-ink);
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: 15pt;
+        line-height: 1.15;
+        text-transform: uppercase;
+      }
+      section + section { margin-top: 4mm; }
+
+      .ep { padding-block: 1.9mm; border-bottom: .25mm solid var(--rule); }
+      .ep-line { display: flex; gap: 2mm; align-items: baseline; font-family: var(--mono); font-size: 7.2pt; color: var(--amber); }
+      .ep-code { padding: 0 1.2mm; background: var(--ink); color: var(--chalk); }
+      .ep h3, .role h3 { font-size: 10pt; font-weight: 600; line-height: 1.25; }
+      .ep-meta, .role-meta { font-family: var(--mono); font-size: 7.2pt; color: var(--quiet); }
+
+      .role { display: grid; grid-template-columns: 19mm 1fr; gap: 2.4mm; padding-block: 1.9mm; border-bottom: .25mm solid var(--rule); }
+      .role-years { padding-top: .6mm; font-family: var(--mono); font-size: 7.2pt; color: var(--amber); }
+      .role h3 span { font-weight: 400; color: var(--quiet); }
+      .role-mission { color: var(--seal); font-weight: 600; }
+
+      /* Right column: the file */
+      .file dl > div { padding-block: 1.6mm; border-bottom: .25mm solid var(--rule); }
+      .file dt { font-family: var(--mono); font-size: 7.2pt; font-weight: 500; color: var(--amber); }
+      .file dd span { display: block; }
+      .file dd span + span { margin-top: .7mm; }
+      .card { padding-block: 1.6mm; border-bottom: .25mm solid var(--rule); }
+      .card strong { display: block; font-family: var(--mono); font-size: 7.2pt; font-weight: 500; color: var(--amber); }
+
+      /* Footer: the way in */
+      .foot {
+        display: flex;
+        align-items: baseline;
+        gap: 4mm;
+        padding: 3.2mm 12mm;
+        background: var(--ink);
+        color: var(--chalk);
+        font-family: var(--mono);
+        font-size: 8pt;
+      }
+      .foot a { color: var(--torch); font-weight: 500; text-decoration: none; }
+      .foot .hint { margin-left: auto; color: var(--muted); }
+
+      @media print { html { background: none; } }
+    </style>
+  </head>
+  <body>
+    <main class="sheet">
+      <header class="top">
+        <div>
+          <p class="kicker">{cv.kicker}</p>
+          <h1 class="name">{cv.name} <span class="alias">{cv.alias}</span></h1>
+          <p class="lead">{cv.lead}</p>
+        </div>
+        <address class="contact" style="font-style: normal">
+          <a href={`mailto:${contact.email}`}>{contact.email}</a><br />
+          <a href={`tel:${(contact.phone ?? '').replace(/\s/g, '')}`}>{contact.phone}</a><br />
+          <span class="city">{civil.file.rows.find((r) => r.key === 'Základna')?.lines[0]}</span>
+        </address>
+        <div class="stamp" aria-hidden="true">{civil.file.stamp}</div>
+      </header>
+      <div class="slate" aria-hidden="true"></div>
+      <dl class="stats">
+        {cv.stats.map((s) => (
+          <div>
+            <dt>{s.label}</dt>
+            <dd>{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div class="body">
+        <div>
+          <section>
+            <h2 class="h">{cv.episodesTitle}</h2>
+            <ol>
+              {cv.episodes.map((ep) => (
+                <li class="ep">
+                  <p class="ep-line"><span class="ep-code">{ep.code}</span> {ep.genre}</p>
+                  <h3>{ep.title}</h3>
+                  <p class="ep-meta">{ep.meta}</p>
+                  <p>{ep.text}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+          <section>
+            <h2 class="h">{civil.title}</h2>
+            <ol>
+              {civil.roles.map((r) => (
+                <li class="role">
+                  <p class="role-years">{r.years}</p>
+                  <div>
+                    <h3>{r.role} <span>· {r.field}</span></h3>
+                    <p class="role-meta">{r.org}</p>
+                    <p>{r.what}</p>
+                    {r.mission && <p class="role-mission">{civil.missionLabel}: {r.mission}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+
+        <aside>
+          <section class="file">
+            <h2 class="h">{civil.file.title}</h2>
+            <dl>
+              {civil.file.rows.filter((r) => r.key !== 'Základna').map((row) => (
+                <div>
+                  <dt>{row.key}</dt>
+                  <dd>{row.lines.map((line) => <span>{line}</span>)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+          <section>
+            <h2 class="h">{cv.honestTitle}</h2>
+            <ul>
+              {honest.map((row) => (
+                <li class="card">
+                  <strong>{row.need}</strong>
+                  {row.proof}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="foot">
+        <span>{cv.webLabel}:</span>
+        <a href={cv.webUrl}>{cv.webUrl.replace('https://', '')}</a>
+        <span class="hint">{cv.webHint}</span>
+      </footer>
+    </main>
+  </body>
+</html>

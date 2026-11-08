@@ -1,0 +1,516 @@
+---
+import Ep1Stage from './films/Ep1Stage.astro';
+import Ep2Stage from './films/Ep2Stage.astro';
+import Ep3Stage from './films/Ep3Stage.astro';
+import Ep4Stage from './films/Ep4Stage.astro';
+---
+<div class="film" id="film" role="dialog" aria-modal="true" aria-labelledby="filmName" hidden>
+  <header class="film-top">
+    <span class="film-code" id="filmCode"></span>
+    <span class="film-name" id="filmName"></span>
+    <button type="button" class="film-btn" id="filmSkip">Přeskočit</button>
+    <button type="button" class="film-btn" id="filmClose">Zavřít</button>
+  </header>
+
+  <div class="film-screen">
+    <Ep1Stage />
+    <Ep2Stage />
+    <Ep3Stage />
+    <Ep4Stage />
+  </div>
+
+  <p class="film-sub" id="filmSub" aria-live="polite"></p>
+  <div class="film-next" id="filmNext" hidden>
+    <button type="button" class="film-btn film-btn-main" id="filmNextBtn"></button>
+    <button type="button" class="film-btn" id="filmStay">Zůstat tady</button>
+  </div>
+  <div class="film-controls">
+    <button type="button" class="film-ctl" id="filmBack" aria-label="Předchozí záběr">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.4v14H6zM19 5v14L9.4 12z" /></svg>
+    </button>
+    <button type="button" class="film-ctl film-ctl-main" id="filmToggle" aria-label="Pozastavit">
+      <svg class="ic-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z" /></svg>
+      <svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15L19.5 12z" /></svg>
+    </button>
+    <button type="button" class="film-ctl" id="filmForward" aria-label="Další záběr">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 5H18v14h-2.4zM5 5v14l9.6-7z" /></svg>
+    </button>
+    <div class="film-track">
+      <div class="film-ticks" id="filmTicks" aria-hidden="true"></div>
+      <input type="range" id="filmSeek" aria-label="Časová osa dílu" min="0" max="100" step="100" value="0" />
+    </div>
+    <span class="film-clock" id="filmClock"></span>
+  </div>
+</div>
+
+<script>
+  import { films, type FilmId } from '../data/mission';
+  import { startFilm, scoreShot, filmFinished, endFilm, pauseScore, resumeScore } from '../lib/score';
+
+  const root = document.documentElement;
+  const film = document.getElementById('film') as HTMLElement;
+  const sub = document.getElementById('filmSub') as HTMLElement;
+  const seek = document.getElementById('filmSeek') as HTMLInputElement;
+  const ticks = document.getElementById('filmTicks') as HTMLElement;
+  const clockEl = document.getElementById('filmClock') as HTMLElement;
+  const toggleBtn = document.getElementById('filmToggle') as HTMLButtonElement;
+  const backBtn = document.getElementById('filmBack') as HTMLButtonElement;
+  const forwardBtn = document.getElementById('filmForward') as HTMLButtonElement;
+  const closeBtn = document.getElementById('filmClose') as HTMLButtonElement;
+  const skipBtn = document.getElementById('filmSkip') as HTMLButtonElement;
+  const codeEl = document.getElementById('filmCode') as HTMLElement;
+  const nameEl = document.getElementById('filmName') as HTMLElement;
+  const blocked = [document.getElementById('deck'), document.querySelector<HTMLElement>('.deck-nav')];
+
+  let timer = 0;
+  let started = 0;
+  let next = 0;
+  let opener: HTMLElement | null = null;
+  let data = films.ep1 as (typeof films)[FilmId];
+  let stage = film.querySelector<HTMLElement>('[data-film="ep1"]')!;
+  let paused = false;
+  let pausedAt = 0;
+  let ended = false;
+  let scrubbing = false;
+
+  // One element for all four films: a phone that allowed it once keeps allowing it, also when the next film starts by itself.
+  const voice = new Audio();
+  voice.preload = 'auto';
+  // The film's time follows the voice. If the browser refuses to play it, the picture goes on by the wall clock.
+  let wallClock = false;
+  let voiceToken = 0;
+
+  // The hosting answers every request with the whole file and cannot jump inside it, which breaks seeking
+  // (and iPhones ask for exactly that). So each voice is fetched whole first and plays from memory.
+  const voiceFiles = new Map<string, Promise<string>>();
+  const readyFiles = new Map<string, string>();
+  function voiceFile(url: string) {
+    let file = voiceFiles.get(url);
+    if (!file) {
+      file = fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.blob();
+        })
+        .then((blob) => URL.createObjectURL(blob))
+        .catch(() => url)
+        .then((src) => {
+          readyFiles.set(url, src);
+          return src;
+        });
+      voiceFiles.set(url, file);
+    }
+    return file;
+  }
+  // Fetched one by one after the lock, so a film usually starts at once.
+  addEventListener('mission:open', async () => {
+    for (const id of Object.keys(films) as FilmId[]) await voiceFile(films[id].audio!);
+  }, { once: true });
+
+  // A phone needs a real tap before the first sound. The element is switched on at the first one, with a moment of silence.
+  const SILENCE = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQIAAACAgA==';
+  const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'];
+  function unlockVoice() {
+    GESTURES.forEach((type) => removeEventListener(type, unlockVoice, true));
+    if (voice.src) return;
+    voice.src = SILENCE;
+    voice.play().catch(() => {});
+  }
+  GESTURES.forEach((type) => addEventListener(type, unlockVoice, { capture: true, passive: true }));
+
+  function playVoice() {
+    voice.play()
+      .then(() => { wallClock = false; })
+      .catch((error: DOMException) => {
+        if (error.name !== 'NotAllowedError' || wallClock || paused) return;
+        wallClock = true;
+        started = performance.now() - voice.currentTime * 1000;
+      });
+  }
+  function loadVoice() {
+    const token = ++voiceToken;
+    const url = data.audio!;
+    voice.pause();
+    const ready = readyFiles.get(url);
+    if (ready) {
+      voice.src = ready;
+      playVoice();
+      return;
+    }
+    // Until the file arrives the time stands on zero, so the picture waits for the voice.
+    voice.removeAttribute('src');
+    voice.load();
+    voiceFile(url).then((src) => {
+      if (token !== voiceToken || film.hidden) return;
+      voice.src = src;
+      if (pausedAt) voice.currentTime = pausedAt / 1000;
+      if (!paused && !scrubbing) playVoice();
+    });
+  }
+
+  // The series runs on its own: every film hands over to the next one, the last one to the finale.
+  const nextBar = document.getElementById('filmNext') as HTMLElement;
+  const nextBtn = document.getElementById('filmNextBtn') as HTMLButtonElement;
+  const stayBtn = document.getElementById('filmStay') as HTMLButtonElement;
+  const chain: Record<FilmId, { next: FilmId | null; wait: number }> = {
+    // EP 01 ends on the case file, so it leaves more time to read.
+    ep1: { next: 'ep2', wait: 20 },
+    ep2: { next: 'ep3', wait: 10 },
+    ep3: { next: 'ep4', wait: 10 },
+    ep4: { next: null, wait: 8 },
+  };
+  let current: FilmId = 'ep1';
+  let countdown = 0;
+  let handoff = 0;
+  function nextLabel(left = 0) {
+    const next = chain[current].next;
+    const name = next ? `Další díl: ${films[next].title}` : 'Pokračovat';
+    nextBtn.textContent = left ? `${name} (${left} s)` : name;
+  }
+  function stopCountdown() {
+    clearTimeout(handoff);
+    if (!countdown) return;
+    clearInterval(countdown);
+    countdown = 0;
+    stayBtn.hidden = true;
+    nextLabel();
+  }
+  function goNext() {
+    stopCountdown();
+    const next = chain[current].next;
+    if (next) open(next, document.querySelector<HTMLElement>(`.episode [data-play="${next}"]`)!);
+    // The last episode leads on to the scene after the episodes. Replayed from a later scene, it just closes and stays there.
+    else if (Number(location.hash.replace('#scena-', '')) > 3) close();
+    else stage.querySelector<HTMLElement>('[data-goto]')?.click();
+  }
+  function startCountdown() {
+    let left = chain[current].wait;
+    nextBar.hidden = false;
+    stayBtn.hidden = false;
+    nextLabel(left);
+    nextBtn.focus({ preventScroll: true });
+    countdown = window.setInterval(() => {
+      left -= 1;
+      if (left <= 0) goNext();
+      else nextLabel(left);
+    }, 1000);
+  }
+
+  const clock = () => (paused ? pausedAt : wallClock ? performance.now() - started : voice.currentTime * 1000);
+  const mmss = (ms: number) => {
+    const total = Math.round(ms / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  };
+  function paint(now: number) {
+    const at = Math.min(now, data.endsAt);
+    if (!scrubbing) seek.value = String(at);
+    seek.style.setProperty('--p', `${(Number(seek.value) / data.endsAt) * 100}%`);
+    clockEl.textContent = `${mmss(at)} / ${mmss(data.endsAt)}`;
+  }
+  function showToggle() {
+    const playing = !paused && !ended;
+    film.classList.toggle('paused', paused);
+    toggleBtn.classList.toggle('is-playing', playing);
+    toggleBtn.setAttribute('aria-label', ended ? 'Přehrát znovu' : playing ? 'Pozastavit' : 'Přehrát');
+  }
+
+  // Beats add up as classes; data-beat says which one is on air now.
+  function clearBeats() {
+    stage.className = stage.className.split(' ').filter((c) => !/^b\d+$|^ended$/.test(c)).join(' ');
+    stage.dataset.beat = '0';
+  }
+  function hideEnd() {
+    sub.hidden = false;
+    nextBar.hidden = true;
+    stopCountdown();
+    skipBtn.hidden = false;
+    stage.querySelectorAll<HTMLElement>('.film-end').forEach((el) => { el.hidden = true; });
+    resetDraw();
+  }
+  function reset() {
+    clearBeats();
+    sub.textContent = '';
+    hideEnd();
+    next = 0;
+    ended = false;
+    paused = false;
+    pausedAt = 0;
+    scrubbing = false;
+    voice.muted = false;
+    wallClock = false;
+    seek.max = String(data.endsAt);
+    ticks.replaceChildren(...data.cues.slice(1).map((c) => {
+      const mark = document.createElement('i');
+      mark.style.left = `${(c.t / data.endsAt) * 100}%`;
+      return mark;
+    }));
+    showToggle();
+    paint(0);
+  }
+
+  function tick() {
+    if (scrubbing) return;
+    // A phone can stop the voice on its own, after a call or a switch to another app.
+    if (!paused && !ended && !wallClock && voice.paused && voice.readyState >= 2 && !voice.ended) playVoice();
+    const now = clock();
+    while (next < data.cues.length && data.cues[next].t <= now) {
+      const cue = data.cues[next++];
+      stage.classList.add(`b${cue.beat}`);
+      stage.dataset.beat = String(cue.beat);
+      scoreShot(cue.beat);
+      sub.textContent = cue.text;
+    }
+    paint(now);
+    if (now >= data.endsAt || voice.ended) finish();
+  }
+
+  function finish() {
+    clearInterval(timer);
+    voice.pause();
+    filmFinished(current);
+    ended = true;
+    paused = false;
+    data.cues.forEach((c) => stage.classList.add(`b${c.beat}`));
+    stage.classList.add('ended');
+    showToggle();
+    paint(data.endsAt);
+    sub.textContent = '';
+    sub.hidden = true;
+    skipBtn.hidden = true;
+    const end = stage.querySelector<HTMLElement>('.film-end');
+    if (end) end.hidden = false;
+    if (current === 'ep2') drawEffect();
+    // EP 04 cuts off mid-sentence, the black page finishes it, then the journey goes on.
+    if (!chain[current].next) {
+      nextBar.hidden = false;
+      nextLabel();
+      handoff = window.setTimeout(goNext, 2800);
+      return;
+    }
+    startCountdown();
+  }
+
+  function run() {
+    clearInterval(timer);
+    timer = window.setInterval(tick, 100);
+  }
+  function setPaused(value: boolean) {
+    if (ended) {
+      if (!value) seekTo(0);
+      return;
+    }
+    if (value === paused) return;
+    if (value) {
+      pausedAt = clock();
+      paused = true;
+      clearInterval(timer);
+      voice.pause();
+      pauseScore();
+    } else {
+      started = performance.now() - pausedAt;
+      paused = false;
+      voice.muted = false;
+      resumeScore();
+      playVoice();
+      run();
+    }
+    showToggle();
+  }
+
+  // Jump anywhere in the film, end screen included: the picture is rebuilt from the cues up to that moment.
+  // After the jump the film simply goes on playing from there, unless it was paused.
+  function seekTo(target: number) {
+    const at = Math.max(0, target);
+    if (at >= data.endsAt) {
+      if (!ended) finish();
+      return;
+    }
+    const wasEnded = ended;
+    if (wasEnded) {
+      ended = false;
+      hideEnd();
+      startFilm(current);
+    }
+    const count = data.cues.filter((c) => c.t <= at).length;
+    const last = count ? data.cues[count - 1] : null;
+    // Dragging inside one shot changes nothing on screen, so its move does not restart under the finger.
+    if (wasEnded || count !== next || !scrubbing) {
+      clearBeats();
+      // Earlier shots land at once, only the one on air plays its move.
+      stage.classList.add('film-jump');
+      data.cues.slice(0, Math.max(0, count - 1)).forEach((c) => stage.classList.add(`b${c.beat}`));
+      void stage.offsetWidth;
+      stage.classList.remove('film-jump');
+      if (last) {
+        stage.classList.add(`b${last.beat}`);
+        stage.dataset.beat = String(last.beat);
+        scoreShot(last.beat, !scrubbing);
+      }
+      next = count;
+    }
+    sub.textContent = last ? last.text : '';
+    pausedAt = at;
+    started = performance.now() - at;
+    paint(at);
+    if (scrubbing) {
+      // The voice waits for the finger: it moves once, on release. It only goes quiet and never stops,
+      // because Safari may refuse to start it again once the finger is gone.
+      voice.muted = true;
+    } else {
+      voice.muted = false;
+      voice.currentTime = at / 1000;
+      if (!paused) {
+        playVoice();
+        run();
+      }
+    }
+    showToggle();
+  }
+  function stepBack() {
+    const on = ended ? data.cues.length - 1 : Math.max(0, next - 1);
+    const into = clock() - data.cues[on].t;
+    // Early in a shot means "the one before", later means "the start of this one", like any player.
+    seekTo(data.cues[!ended && into < 1500 ? Math.max(0, on - 1) : on].t);
+  }
+  function stepForward() {
+    if (ended) goNext();
+    else if (next < data.cues.length) seekTo(data.cues[next].t);
+    else finish();
+  }
+
+  function open(id: FilmId, from: HTMLElement) {
+    // Started from inside an episode file: focus returns to the card, because the file is closed by then.
+    opener = from.closest('dialog')
+      ? document.querySelector<HTMLElement>(`.episode [data-play="${id}"]`)
+      : from;
+    clearInterval(timer);
+    current = id;
+    data = films[id];
+    film.querySelectorAll<HTMLElement>('[data-film]').forEach((el) => { el.hidden = el.dataset.film !== id; });
+    stage = film.querySelector<HTMLElement>(`[data-film="${id}"]`)!;
+    codeEl.textContent = data.code;
+    nameEl.textContent = data.title;
+    reset();
+    film.hidden = false;
+    root.classList.add('playing');
+    blocked.forEach((el) => { if (el) el.inert = true; });
+    toggleBtn.focus();
+    startFilm(id);
+    started = performance.now();
+    loadVoice();
+    run();
+    tick();
+  }
+
+  function close(returnFocus = true) {
+    clearInterval(timer);
+    stopCountdown();
+    voiceToken += 1;
+    voice.pause();
+    resumeScore();
+    endFilm();
+    film.hidden = true;
+    root.classList.remove('playing');
+    blocked.forEach((el) => { if (el) el.inert = false; });
+    if (returnFocus) opener?.focus();
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-play]');
+    if (btn) open(btn.dataset.play as FilmId, btn);
+  });
+  closeBtn.addEventListener('click', () => close());
+  film.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-film-close]');
+    // A button that also carries data-goto moves the deck away, so focus must not pull it back.
+    if (btn) close(!btn.dataset.goto);
+  });
+  // A refused voice gets another try with the next touch, from the place the picture has reached.
+  // If a browser still refused the voice, the very next touch anywhere in the film brings it back, in sync.
+  function rescueVoice() {
+    if (!wallClock || paused || ended || scrubbing) return;
+    voice.muted = false;
+    voice.currentTime = clock() / 1000;
+    playVoice();
+  }
+  ['pointerup', 'touchend', 'click'].forEach((type) => film.addEventListener(type, rescueVoice));
+  skipBtn.addEventListener('click', finish);
+  // A button pressed after a drag always wins over the drag.
+  toggleBtn.addEventListener('click', () => { dropSeek(); setPaused(ended ? false : !paused); });
+  backBtn.addEventListener('click', () => { dropSeek(); stepBack(); });
+  forwardBtn.addEventListener('click', () => { dropSeek(); stepForward(); });
+
+  // Dragging the line: the picture follows the finger, the voice continues from wherever the finger lets go.
+  // Browsers differ in what they send when a finger lets go, and in which order, so the end of a drag is decided here:
+  // the finger is up and the line has been quiet for a moment.
+  let pressed = false;
+  let settle = 0;
+  function releaseSeek() {
+    clearTimeout(settle);
+    if (!scrubbing) return;
+    scrubbing = false;
+    seekTo(Number(seek.value));
+  }
+  // A lost "finger up" must never leave the film standing, so a held finger also lets the voice go on after a while.
+  function settleSeek() {
+    clearTimeout(settle);
+    settle = window.setTimeout(releaseSeek, pressed ? 4000 : 160);
+  }
+  function dropSeek() {
+    clearTimeout(settle);
+    pressed = false;
+    scrubbing = false;
+    voice.muted = false;
+  }
+  seek.addEventListener('pointerdown', () => { pressed = true; });
+  seek.addEventListener('touchstart', () => { pressed = true; }, { passive: true });
+  // The finger lets go: the voice jumps right away, still inside the touch, where every browser allows sound.
+  ['pointerup', 'pointercancel', 'touchend', 'touchcancel'].forEach((type) => addEventListener(type, () => {
+    pressed = false;
+    if (scrubbing) releaseSeek();
+    else settleSeek();
+  }, { capture: true, passive: true }));
+  seek.addEventListener('input', () => {
+    scrubbing = true;
+    // While dragging, the far end of the line stays in the film, so the end screen does not jump in under the finger.
+    seekTo(Math.min(Number(seek.value), data.endsAt - 1));
+    settleSeek();
+  });
+  seek.addEventListener('change', settleSeek);
+
+  nextBtn.addEventListener('click', goNext);
+  stayBtn.addEventListener('click', stopCountdown);
+  // Someone reading the end screen is not to be interrupted.
+  const screen = film.querySelector<HTMLElement>('.film-screen')!;
+  // Like any video: a tap on the picture pauses it.
+  screen.addEventListener('click', () => { if (!ended) setPaused(!paused); });
+  ['pointerdown', 'wheel', 'touchmove'].forEach((type) => screen.addEventListener(type, stopCountdown, { passive: true }));
+  screen.addEventListener('scroll', stopCountdown, { capture: true, passive: true });
+  addEventListener('keydown', (e) => {
+    if (film.hidden) return;
+    if (e.key === 'Escape') close();
+    const target = e.target as HTMLElement;
+    if (e.key === ' ' && !target.closest('button, input')) {
+      e.preventDefault();
+      setPaused(ended ? false : !paused);
+    }
+    if (target === seek) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); stepBack(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepForward(); }
+  });
+
+  // EP 02: the Jar of Fate draws by itself at the end of the film
+  const draw = document.getElementById('f2Draw');
+  const drawText = document.getElementById('f2DrawText');
+  function resetDraw() {
+    if (draw) draw.hidden = true;
+    draw?.classList.remove('drawn');
+  }
+  function drawEffect() {
+    if (!draw || !drawText) return;
+    const list = films.ep2.effects;
+    if (list.length) drawText.textContent = list[Math.floor(Math.random() * list.length)];
+    draw.hidden = false;
+    draw.classList.add('drawn');
+  }
+</script>

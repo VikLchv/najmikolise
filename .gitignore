@@ -1,0 +1,9 @@
+node_modules
+dist
+.astro
+.wrangler
+.env
+.env.*
+_audio_work
+_reference
+HONZA_UKOLY.md

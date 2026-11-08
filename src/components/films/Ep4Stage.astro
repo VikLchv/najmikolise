@@ -1,0 +1,209 @@
+---
+import { films } from '../../data/mission';
+
+const film = films.ep4;
+const t = film.trailer;
+
+// One long swell, twice as wide as the stage: it loops by sliding half its width.
+const wave = (amp: number, period: number, base: number) => {
+  let d = `M0 ${base}Q${period / 4} ${base - amp} ${period / 2} ${base}`;
+  for (let x = period; x <= 400; x += period / 2) d += `T${x} ${base}`;
+  return `${d}V100H0Z`;
+};
+const fleet = Array.from({ length: 9 }, (_, i) => ({ i, x: 5 + i * 11.2, y: i % 2 ? 0 : 7 }));
+const coins = Array.from({ length: 16 }, (_, i) => ({ i, x: (i * 37) % 100, d: (i * 0.29) % 3.2 }));
+
+// Our own crew of nine, nobody from the films: type = which silhouette, k = size, flip = faces left.
+// x3, x6, x7, x8 = where each stands in that shot (percent of the stage), -1 = not in the shot.
+const crew = [
+  { type: 'flag', k: 1, flip: false, x3: 5, x6: 4, x7: -1, x8: 6 },
+  { type: 'burly', k: 1.04, flip: false, x3: 15, x6: 12, x7: 66, x8: 15 },
+  { type: 'woman', k: .92, flip: false, x3: -1, x6: 20, x7: 54, x8: 24 },
+  { type: 'glass', k: 1, flip: false, x3: 37, x6: 28, x7: -1, x8: -1 },
+  { type: 'captain', k: 1.12, flip: false, x3: 26, x6: 37, x7: 90, x8: 50 },
+  { type: 'lantern', k: .94, flip: true, x3: 47, x6: 46, x7: 42, x8: 33 },
+  { type: 'burly', k: .96, flip: true, x3: -1, x6: 54, x7: 78, x8: 68 },
+  { type: 'woman', k: .9, flip: true, x3: -1, x6: 62, x7: -1, x8: 79 },
+  { type: 'glass', k: .98, flip: true, x3: -1, x6: 70, x7: -1, x8: 92 },
+].map((p, i) => ({
+  ...p,
+  i,
+  style: `--k:${p.k};--i:${i};` + (['x3', 'x6', 'x7', 'x8'] as const)
+    .map((key) => `--${key}:${p[key] < 0 ? 50 : p[key]};--o${key.slice(1)}:${p[key] < 0 ? 0 : 1}`)
+    .join(';'),
+}));
+---
+<div class="film-stage f4" data-film="ep4" hidden>
+  <img class="film-portrait" src={film.portrait} alt="" />
+  <img class="film-portrait film-portrait-b" src={film.portraitEnd} alt="" />
+  <svg class="f4-sprite" aria-hidden="true" width="0" height="0">
+    <defs>
+      <linearGradient id="f4SailFill" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#5a5f66" /><stop offset=".55" stop-color="#2e3138" /><stop offset="1" stop-color="#17191e" />
+      </linearGradient>
+      <linearGradient id="f4HullFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#4a3323" /><stop offset=".5" stop-color="#2a1b12" /><stop offset="1" stop-color="#0f0a07" />
+      </linearGradient>
+      <linearGradient id="f4SeaFar" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2f6470" /><stop offset=".5" stop-color="#17404e" /><stop offset="1" stop-color="#0c2a38" />
+      </linearGradient>
+      <linearGradient id="f4SeaMid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#215262" /><stop offset=".5" stop-color="#103040" /><stop offset="1" stop-color="#081e2b" />
+      </linearGradient>
+      <linearGradient id="f4SeaNear" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#16404f" /><stop offset=".5" stop-color="#091f2c" /><stop offset="1" stop-color="#030c13" />
+      </linearGradient>
+      <linearGradient id="f4Body" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2a3a44" /><stop offset=".45" stop-color="#121b22" /><stop offset="1" stop-color="#05090c" />
+      </linearGradient>
+    </defs>
+    <!-- Silhouettes against the sea and the moon, thin rim of light on the edge. 90 x 160, feet at the bottom. -->
+    <symbol id="f4P-captain" viewBox="0 -30 90 160">
+      <path d="M71 23Q64-2 75-24 83 0 76 24Z" class="f4-steel" />
+      <path d="M65 24L80 19 81 23 67 29Z" class="f4-brass" />
+      <path class="f4-man" d="M21 27Q30 24 33 15 40 10 47 15 50 24 59 27 50 30 48 31L48 37 47 41Q56 43 59 50L70 21 76 25 62 58 61 80 66 130H14L19 80 21 56 12 67 21 75 26 69 21 64 26 50Q29 43 33 41L32 37 32 31Q30 30 21 27Z" />
+      <path class="f4-det" d="M40 42V130M33 41L40 62 47 41M23 88H57M36 50H37M43 50H44M36 60H37M43 60H44" />
+      <path class="f4-brass" d="M36 86H44V91H36Z" />
+    </symbol>
+    <symbol id="f4P-burly" viewBox="0 -30 90 160">
+      <path class="f4-man" d="M47 22L60 20 57 26 62 33 50 30 48 38 50 40Q68 42 71 56L72 94 64 95 62 72 58 130H22L18 72 16 95 8 94 9 56Q12 42 30 40L32 38 31 31Q29 18 40 18 46 18 47 22Z" />
+      <path class="f4-man" d="M64 97L70 48 74 49 69 97Z" />
+      <path class="f4-steel" d="M71 40Q84 36 88 44 84 50 87 58 80 54 72 54Z" />
+      <path class="f4-det" d="M32 27Q40 22 48 25M22 72H58M30 40L40 60 50 40M33 72L47 90" />
+    </symbol>
+    <symbol id="f4P-glass" viewBox="0 -30 90 160">
+      <path class="f4-man" d="M14 27Q36 20 54 24 47 30 45 30L45 37 43 41Q48 42 50 46L60 30 65 32 57 50 42 60 49 90 54 130H16L22 90 19 58Q19 44 29 41L28 37 28 30Q20 30 14 27ZM26 23Q29 8 38 8 47 9 47 22 36 19 26 23Z" />
+      <path class="f4-brass" d="M44 27L70 20 71 26 45 33Z" />
+      <path class="f4-brass" d="M68 17L80 14 82 28 70 29Z" />
+      <path class="f4-det" d="M22 88H49M34 42V88M28 66L44 62" />
+    </symbol>
+    <symbol id="f4P-lantern" viewBox="0 -30 90 160">
+      <path class="f4-man" d="M34 22Q44 20 50 24 54 30 50 38L47 62 44 44Q52 46 58 52L66 72 60 76 54 62 56 92 60 130H24L28 92 26 62 10 64 8 60 26 48Q30 46 32 44L28 62 27 38Q26 26 34 22Z" />
+      <path class="f4-steel" d="M64 74Q72 80 66 88 62 90 60 87" fill="none" />
+      <path class="f4-det" d="M28 92H56M38 62V92" />
+      <path class="f4-rope-line" d="M9 62V70" />
+      <circle class="f4-lantern-glow" cx="9" cy="78" r="16" />
+      <path class="f4-lantern" d="M4 71H14L15 87H3Z" />
+      <path class="f4-brass" d="M3 69H15V71.5H3ZM2 86.5H16V89H2Z" />
+    </symbol>
+    <symbol id="f4P-woman" viewBox="0 -30 90 160">
+      <path class="f4-man" d="M44 16Q58 2 70 11 58 12 50 21ZM23 24Q38 20 55 23 50 29 46 30L45 37 46 40Q51 42 52 46L68 37 70 42 54 54 47 72 56 130H24L33 72 28 56 30 66 26 76 24 58Q24 44 33 40L33 36 32 30Q28 29 23 24ZM29 22Q31 9 39 9 47 10 48 21 38 19 29 22Z" />
+      <path class="f4-steel" d="M67 33L81 30 81 35 73 37 73 42 68 42Z" />
+      <path class="f4-det" d="M33 72H47M36 42L41 58 45 42" />
+    </symbol>
+    <symbol id="f4P-flag" viewBox="0 -30 90 160">
+      <path class="f4-man" d="M59-30H62V130H59Z" />
+      <path class="f4-flagcloth" d="M62-29L88-24 83-17 90-10 81-7 85 0 62-3Z" />
+      <path class="f4-man" d="M32 24Q42 20 48 26L55 22 53 30 47 31 46 38 47 41Q50 42 52 46L60 30 63 33 55 56 49 74 53 130H23L28 74 26 56 18 72 14 70 24 48Q26 42 33 41L32 37Z" />
+      <path class="f4-det" d="M28 74H49M33 41L40 56 47 41M32 30Q40 25 48 27" />
+    </symbol>
+    <symbol id="f4Ship" viewBox="0 0 160 120">
+      <!-- Our own three-master: high stern on the left, torn dark sails, rigging down to the rails -->
+      <path class="f4-rope" d="M46 6L18 50M46 6L70 68M84 2L58 68M84 2L112 68M118 8L98 68M118 8L142 60M84 2L46 6M84 2L118 8M118 8L158 44" />
+      <path class="f4-rig" d="M46 72V6M84 72V2M118 72V8M140 62L158 44" />
+      <path class="f4-rig f4-yard" d="M32 18h28M28 40h36M66 12h36M60 38h48M104 20h28M98 44h40" />
+      <rect class="f4-nest" x="79" y="26" width="10" height="4" />
+      <path class="f4-sail" d="M33 18q13 5 26 0l2 18-5-3-4 5-5-4-5 4-4-3-5 2z" />
+      <path class="f4-sail" d="M29 40q17 6 34 0l3 22-6-4-4 6-6-5-5 5-5-5-6 4-5-3z" />
+      <path class="f4-sail" d="M67 12q17 6 34 0l3 21-6-3-5 5-5-5-6 5-5-4-5 3-5-2z" />
+      <path class="f4-sail" d="M61 38q23 7 46 0l3 27-7-4-5 6-6-5-6 6-6-6-6 5-6-5-7 3z" />
+      <path class="f4-sail" d="M105 20q13 5 26 0l2 19-5-3-4 4-5-4-5 4-4-3-5 2z" />
+      <path class="f4-sail" d="M99 44q19 6 38 0l3 21-6-3-5 5-6-5-5 5-6-4-5 3-5-2z" />
+      <path class="f4-sail" d="M142 58l14-11-3 21-4-3-3 3z" />
+      <path class="f4-flag" d="M84 2l-17-1 3 3-3 2 5 0 2 3 4-3z" />
+      <!-- The crew on deck, the hull hides their legs -->
+      <path class="f4-tiny" d="M54 72v-9l-1-1v-3l2-1a2 2 0 1 1 3 0l2 1v3l-1 1v9zM73 72v-9l-2-2 1-4 2-1a2 2 0 1 1 3 0l2 1 3-5 1 1-3 7v3l-1 2v7zM92 72v-8l-2-3 2-4 1-1-1-1v-1l-2-1h8l-2 1v1l-1 1 1 1 3 4-2 3v8zM26 56v-8l-1-2 1-3 1-1a2 2 0 1 1 3 0l1 1 1 3-1 2v8z" />
+      <path class="f4-hull" d="M6 50l3-7 24 2 3 16 12 8h72l28-13-9 34q-48 14-112 6z" />
+      <path class="f4-plank" d="M10 58l23 2 15 10h72l26-11M15 72q60 7 128-5M19 89q60 8 121-5M36 61l-2 30M60 72l-1 24M85 72l1 24M110 71l3 22M132 66l2 22" />
+      <path class="f4-hull-dark" d="M24 95q50 8 113-8l-3 11q-50 12-108 6z" />
+      <path class="f4-trim" d="M12 66l24 2 12 3h72l26-11M18 82q55 8 124-8" />
+      <g class="f4-ports">
+        <rect x="11" y="52" width="5" height="6" /><rect x="19" y="53" width="5" height="6" /><rect x="27" y="54" width="4" height="6" />
+        <rect x="42" y="77" width="5" height="4" /><rect x="56" y="78" width="5" height="4" /><rect x="70" y="78" width="5" height="4" /><rect x="84" y="78" width="5" height="4" /><rect x="98" y="77" width="5" height="4" /><rect x="112" y="75" width="5" height="4" />
+      </g>
+      <circle class="f4-lamp" cx="7" cy="42" r="2.8" />
+    </symbol>
+  </svg>
+
+  <div class="f4-sky" aria-hidden="true">
+    <i class="f4-moon"></i>
+    <i class="f4-cloud f4-cloud-a"></i>
+    <i class="f4-cloud f4-cloud-b"></i>
+    <i class="f4-ray"></i>
+  </div>
+
+  <div class="f4-nine" aria-hidden="true">
+    {fleet.map((s) => <svg class="f4-small" style={`--x:${s.x};--y:${s.y};--i:${s.i}`}><use href="#f4Ship" /></svg>)}
+  </div>
+
+  <svg class="f4-wave f4-w3" viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><path d={wave(7, 40, 34)} style="fill:url(#f4SeaFar)" /></svg>
+
+  <div class="f4-hero" aria-hidden="true">
+    <svg><use href="#f4Ship" /></svg>
+    <i class="f4-blast f4-blast-a"></i>
+    <i class="f4-blast f4-blast-b"></i>
+  </div>
+
+  <svg class="f4-wave f4-w2" viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><path d={wave(10, 50, 40)} style="fill:url(#f4SeaMid)" /></svg>
+  <svg class="f4-wave f4-w1" viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><path d={wave(13, 100, 42)} style="fill:url(#f4SeaNear)" /></svg>
+
+  <div class="f4-crew" aria-hidden="true">
+    {crew.map((p) => (
+      <div class:list={['f4-pirate', { flip: p.flip }]} style={p.style}>
+        <svg viewBox="0 -30 90 160"><use href={`#f4P-${p.type}`} /></svg>
+      </div>
+    ))}
+    <div class="f4-rail"></div>
+  </div>
+
+  <div class="f4-coins" aria-hidden="true">
+    {coins.map((c) => <i style={`--x:${c.x};--d:${c.d}s`}></i>)}
+  </div>
+  <i class="f4-rain" aria-hidden="true"></i>
+  <i class="f4-flash" aria-hidden="true"></i>
+
+  <div class="f4-card f4-c-1" aria-hidden="true"><p class="f4-big">{t.coming}</p></div>
+  <div class="f4-card f4-c-2" aria-hidden="true">
+    <p class="f4-kicker">{t.yearNote}</p>
+    <p class="f4-year-big">{t.year}</p>
+  </div>
+  <div class="f4-card f4-c-3" aria-hidden="true">
+    <p class="f4-show">{t.title}</p>
+    <p class="f4-sub">{t.subtitle}</p>
+  </div>
+  <div class="f4-card f4-c-6" aria-hidden="true">
+    <p class="f4-lords"><b>{t.lords.count}</b> {t.lords.label}</p>
+    {t.lords.lines.map((line, i) => <p class="f4-line" style={`--i:${i}`}>{line}</p>)}
+  </div>
+  <div class="f4-card f4-c-7" aria-hidden="true">
+    {t.ports.map((line, i) => <p class="f4-port" style={`--i:${i}`}>{line}</p>)}
+  </div>
+  <div class="f4-card f4-c-8" aria-hidden="true">
+    <svg class="f4-crown" viewBox="0 0 60 40"><path d="M4 36L1 10l15 11L30 2l14 19 15-11-3 26z" /></svg>
+    <p class="f4-kicker">{t.legend}</p>
+    <p class="f4-big">{t.ruler}</p>
+  </div>
+
+  <div class="f4-map" aria-hidden="true">
+    <svg viewBox="0 0 130 100">
+      <rect class="f4-sheet" x="1" y="1" width="128" height="98" />
+      <text class="f4-title" x="65" y="18">{film.mapTitle}</text>
+      <text class="f4-year" x="65" y="27">{film.mapSubtitle} · {film.mapYear}</text>
+      <path class="f4-coast f4-c1" pathLength="1" d="M12 70c4-7 14-9 22-6s14 2 16 8-4 11-12 12-18 1-23-3-6-6-3-11z" />
+      <path class="f4-coast f4-c2" pathLength="1" d="M48 46c5-5 14-6 20-3s10 6 8 11-9 8-16 7-13-3-14-8 0-5 2-7z" />
+      <path class="f4-coast f4-c3" pathLength="1" d="M92 54c-3-6-1-13 6-16s15-3 20 1 7 9 6 15" />
+      <mask id="f4RouteMask">
+        <path class="f4-route-mask" pathLength="1" d="M31 72C42 70 52 62 60 54S92 44 106 45" />
+      </mask>
+      <path class="f4-route" mask="url(#f4RouteMask)" d="M31 72C42 70 52 62 60 54S92 44 106 45" />
+      <g class="f4-x"><path d="M102 41l8 8M110 41l-8 8" /></g>
+      <text class="f4-unknown" x="96" y="90">{film.unknown}</text>
+    </svg>
+  </div>
+  <div class="f4-dark" aria-hidden="true"></div>
+
+  <div class="film-end f4-end" hidden>
+    <h3 class="film-end-title">{film.endTitle}</h3>
+    <button type="button" data-film-close data-goto={4} hidden></button>
+  </div>
+</div>

@@ -1,0 +1,25 @@
+{
+  "name": "kolis-mission",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@fontsource/anton": "^5.2.0",
+    "@fontsource/caveat-brush": "^5.2.0",
+    "@fontsource/ibm-plex-mono": "^5.2.0",
+    "@fontsource/ibm-plex-sans": "^5.2.0",
+    "astro": "^7.3.6"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}

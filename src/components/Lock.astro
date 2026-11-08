@@ -1,0 +1,289 @@
+---
+const letters = [
+  { ch: 'K', x: 17, y: 31, r: -8 },
+  { ch: 'O', x: 76, y: 27, r: 6 },
+  { ch: 'L', x: 45, y: 47, r: -3 },
+  { ch: 'I', x: 84, y: 58, r: 9 },
+  { ch: 'S', x: 19, y: 66, r: -11 },
+];
+
+const scrawls = [
+  { t: 'Večerka ve 22:00. I pro štáb.', x: 36, y: 22, r: -2 },
+  { t: 'heslo není řízek', x: 54, y: 37, r: 3 },
+  { t: 'plán B: viz plán C', x: 5, y: 44, r: -4 },
+  { t: 'tudy ne →', x: 68, y: 46, r: 5 },
+  { t: 'Kdo tohle čte, má budíček v 6:30', x: 36, y: 61, r: 2 },
+  { t: 'studený', x: 62, y: 71, r: -6 },
+];
+---
+<section id="lock" class="lock" aria-label="Zámek: najdi heslo baterkou">
+  <div class="wall" aria-hidden="true">
+    <svg class="wall-filters" width="0" height="0">
+      <filter id="chalk">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="3" />
+      </filter>
+    </svg>
+
+    {scrawls.map((s) => (
+      <span class="scrawl" style={`left:${s.x}%;top:${s.y}%;--rot:${s.r}deg`}>{s.t}</span>
+    ))}
+
+    <svg class="tent" viewBox="0 0 120 90" style="left:44%;top:27%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 80 60 10l52 70Z" />
+      <path d="M60 10v14M48 80l12-26 12 26" />
+      <path d="M2 84c30-3 80-3 116 0" />
+    </svg>
+
+    {letters.map((l) => (
+      <span class="wall-letter" style={`left:${l.x}%;top:${l.y}%;--rot:${l.r}deg`}>{l.ch}</span>
+    ))}
+  </div>
+
+  <div class="dark" id="dark" aria-hidden="true"></div>
+
+  <div class="glow-layer" aria-hidden="true">
+    {letters.map((l, i) => (
+      <span class="glow-letter" data-i={i} style={`left:${l.x}%;top:${l.y}%;--rot:${l.r}deg`}>{l.ch}</span>
+    ))}
+  </div>
+
+  <header class="lock-top">
+    <p class="lock-status"><span class="lock-dot"></span>Výpadek proudu</p>
+    <h1 class="lock-title">Někdo zhasl. Heslo je na zdi.</h1>
+    <p class="lock-sub" id="lockSub">Klikni do tmy a hýbej myší, baterka půjde za tebou.</p>
+  </header>
+
+  <footer class="lock-bottom">
+    <p class="lock-note" id="lockNote" aria-live="polite"></p>
+    <div class="slots" id="slots" role="img" aria-label="Nalezená písmena hesla">
+      {letters.map(() => <span class="slot"></span>)}
+    </div>
+    <div class="lock-actions">
+      <button type="button" class="hint-btn" id="hint1">Hint 1</button>
+      <button type="button" class="hint-btn" id="hint2" disabled>Hint 2</button>
+      <button type="button" class="skip-btn" id="skip">Přeskočit zámek</button>
+    </div>
+  </footer>
+</section>
+
+<script>
+  import { setScene, setLevel, cue } from '../lib/score';
+
+  const root = document.documentElement;
+  const lock = document.getElementById('lock') as HTMLElement | null;
+
+  function reveal() {
+    root.classList.remove('locked');
+    root.classList.add('opened');
+    lock?.remove();
+    document.getElementById('journey')?.removeAttribute('inert');
+    dispatchEvent(new Event('mission:open'));
+  }
+
+  // Every visit starts on the lock, nothing about an earlier unlock is remembered.
+  if (lock) init(lock);
+
+  function init(lock: HTMLElement) {
+    const dark = lock.querySelector<HTMLElement>('#dark')!;
+    const glows = [...lock.querySelectorAll<HTMLElement>('.glow-letter')];
+    const slots = [...lock.querySelectorAll<HTMLElement>('.slot')];
+    const note = lock.querySelector<HTMLElement>('#lockNote')!;
+    const hint1 = lock.querySelector<HTMLButtonElement>('#hint1')!;
+    const hint2 = lock.querySelector<HTMLButtonElement>('#hint2')!;
+    const skip = lock.querySelector<HTMLButtonElement>('#skip')!;
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const PASSWORD = 'KOLIS';
+    setScene('lock');
+    const DWELL_MS = 220;
+    const TOUCH_DWELL_MS = 120;
+
+    if (coarse) lock.querySelector('#lockSub')!.textContent = 'Dotkni se tmy a táhni prstem, baterka půjde za tebou.';
+
+    let w = 0, h = 0, half = 0, radius = 160;
+    let centers: { x: number; y: number }[] = [];
+    const dwell = glows.map(() => 0);
+    const found = glows.map(() => false);
+    let x = innerWidth / 2, y = innerHeight * 0.45, tx = x, ty = y;
+    let touch = false, held = false;
+    let moved = false, done = false, last = performance.now(), buffer = '';
+
+    function measure() {
+      w = innerWidth;
+      h = innerHeight;
+      half = dark.offsetWidth / 2;
+      // Same numbers as --r in global.css. A custom property holding clamp() cannot be read back as pixels.
+      radius = Math.max(140, Math.min(220, 0.26 * Math.min(w, h)));
+      centers = glows.map((el) => {
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      });
+    }
+    measure();
+    addEventListener('resize', measure);
+
+    function frame(now: number) {
+      if (done) return;
+      const dt = now - last;
+      last = now;
+
+      if (!moved && !calm) {
+        tx = w * 0.5 + Math.sin(now * 0.0007) * w * 0.26;
+        ty = h * 0.46 + Math.cos(now * 0.0011) * h * 0.16;
+      }
+      // Time-based, so the beam keeps up with the finger on a phone that drops frames.
+      const follow = 1 - 0.82 ** (dt / 16.7);
+      x += (tx - x) * follow;
+      y += (ty - y) * follow;
+
+      let s = 1;
+      if (!calm) {
+        s = 1 + Math.sin(now * 0.013) * 0.006 + Math.sin(now * 0.037) * 0.006;
+        if (Math.sin(now * 0.0013) > 0.997) s -= 0.05;
+      }
+      dark.style.transform = `translate3d(${x - half}px, ${y - half}px, 0) scale(${s})`;
+
+      if (moved) {
+        // With a finger the centre of the light is hidden, so a letter counts wherever it is visibly lit.
+        const reach = radius * (touch ? 0.8 : 0.62);
+        const hold = touch ? TOUCH_DWELL_MS : DWELL_MS;
+        centers.forEach((c, i) => {
+          if (found[i]) return;
+          const near = Math.hypot(c.x - x, c.y - y) < reach;
+          dwell[i] = near ? dwell[i] + dt : 0;
+          if (dwell[i] > hold) find(i);
+        });
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    lock.addEventListener('pointermove', aim);
+    lock.addEventListener('pointerdown', aim);
+    function aim(e: PointerEvent) {
+      // The browser lets music start only after a click, so the torch is taken in hand by a click too.
+      if (e.type === 'pointerdown') held = true;
+      if (!held) return;
+      moved = true;
+      touch = e.pointerType === 'touch';
+      tx = e.clientX;
+      // a finger hides the light, so the beam sits above it
+      ty = e.clientY - (touch ? 70 : 0);
+      if (!touch || done) return;
+      // The phone's toolbars can move the page without a resize event.
+      if (e.type === 'pointerdown') measure();
+      // A letter under the finger counts at once, also for a plain tap.
+      centers.forEach((c, i) => {
+        if (!found[i] && Math.hypot(c.x - e.clientX, c.y - e.clientY) < 70) find(i);
+      });
+    }
+    // Keeps Safari from taking the drag over as a page bounce, which would stop the beam mid-move.
+    lock.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+    addEventListener('keydown', onKey);
+    function onKey(e: KeyboardEvent) {
+      const step = 48;
+      const arrows: Record<string, [number, number]> = {
+        ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step],
+      };
+      if (arrows[e.key]) {
+        e.preventDefault();
+        moved = true;
+        tx = Math.min(w, Math.max(0, tx + arrows[e.key][0]));
+        ty = Math.min(h, Math.max(0, ty + arrows[e.key][1]));
+        return;
+      }
+      if (e.key.length === 1) {
+        buffer = (buffer + e.key.toUpperCase()).slice(-PASSWORD.length);
+        if (buffer === PASSWORD) found.forEach((f, i) => { if (!f) find(i); });
+      }
+    }
+
+    function find(i: number) {
+      found[i] = true;
+      const count = found.filter(Boolean).length;
+      cue('letter', count - 1);
+      setLevel(count);
+      const el = glows[i];
+      el.classList.add('found');
+      if (coarse && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(15);
+
+      const finish = () => {
+        slots[i].textContent = PASSWORD[i];
+        slots[i].classList.add('filled');
+        if (found.every(Boolean) && !done) win();
+      };
+      if (calm) return finish();
+
+      const from = el.getBoundingClientRect();
+      const to = slots[i].getBoundingClientRect();
+      const ghost = el.cloneNode(true) as HTMLElement;
+      ghost.classList.add('flying');
+      lock.appendChild(ghost);
+      ghost.style.left = `${from.left + from.width / 2}px`;
+      ghost.style.top = `${from.top + from.height / 2}px`;
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      ghost.animate(
+        [
+          { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.4)`, opacity: 0.9 },
+        ],
+        { duration: 620, easing: 'cubic-bezier(.3,.7,.2,1)' },
+      ).onfinish = () => {
+        ghost.remove();
+        finish();
+      };
+    }
+
+    hint1.addEventListener('click', () => {
+      note.textContent = 'Hledej velká křídová písmena. Je jich pět, ty malé čmáranice tě jen zdržují.';
+      hint1.disabled = true;
+      hint2.disabled = false;
+      hint2.focus();
+    });
+
+    hint2.addEventListener('click', () => {
+      hint2.disabled = true;
+      lock.classList.add('ghosts');
+      note.textContent = coarse
+        ? 'Někdo na chvíli nahodil jistič. Heslo je přezdívka kandidáta: KOLIS. Posviť na všech pět písmen.'
+        : 'Někdo na chvíli nahodil jistič. Heslo je přezdívka kandidáta: KOLIS. Posviť na všech pět písmen, nebo ho rovnou napiš.';
+      if (calm) return;
+      dark.animate(
+        [
+          { opacity: 1 }, { opacity: 0, offset: 0.08 }, { opacity: 0.9, offset: 0.16 },
+          { opacity: 0, offset: 0.24 }, { opacity: 0, offset: 0.8 }, { opacity: 1 },
+        ],
+        { duration: 1500 },
+      );
+    });
+
+    skip.addEventListener('click', () => open(true));
+
+    function win() {
+      done = true;
+      lock.classList.add('won');
+      note.textContent = 'Proud naskočil. Vítej na misi.';
+      cue('power');
+      setTimeout(() => open(false), calm ? 300 : 650);
+    }
+
+    function open(quick: boolean) {
+      done = true;
+      removeEventListener('keydown', onKey);
+      removeEventListener('resize', measure);
+      if (quick || calm) return reveal();
+      dark.animate(
+        [
+          { opacity: 1 }, { opacity: 0.1, offset: 0.12 }, { opacity: 1, offset: 0.2 },
+          { opacity: 0.2, offset: 0.34 }, { opacity: 0.9, offset: 0.42 }, { opacity: 0 },
+        ],
+        { duration: 900, fill: 'forwards' },
+      ).onfinish = () => {
+        lock.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, easing: 'ease-out', fill: 'forwards' }).onfinish = reveal;
+      };
+    }
+  }
+</script>

@@ -1,0 +1,214 @@
+---
+import Gap from '../Gap.astro';
+import { films } from '../../data/mission';
+
+const film = films.ep1;
+
+// Hand-placed so the cards look thrown on the board, yet never cover each other's words. Percent of the board.
+const spots = [
+  [10, 18], [15, 44], [8, 68], [17, 88],
+  [33, 11], [37, 36], [32, 60], [38, 84],
+  [58, 20], [58, 45], [62, 68], [58, 90],
+  [82, 12], [88, 36], [82, 60], [90, 84],
+];
+const tilt = [-9, 6, -5, 11, 7, -12, 4, -7, 10, -4, 8, -10, -6, 9, -8, 5];
+// Who lands when, and which word each card holds, so nothing reads in rows.
+const landing = [5, 12, 2, 9, 15, 0, 7, 13, 3, 10, 6, 1, 14, 8, 11, 4];
+const words = [2, 0, 3, 1, 3, 1, 0, 2, 0, 3, 2, 1, 1, 2, 3, 0];
+const fake = [5, 10];
+const cards = spots.map(([x, y], i) => ({
+  i,
+  x,
+  y,
+  r: tilt[i],
+  n: landing[i],
+  tone: i % 3,
+  label: film.cardLabels[words[i]],
+  fake: fake.includes(i),
+}));
+// The threads run behind the cards, from middle to middle, so they can never cross a word.
+const threads = [[0, 5], [5, 10], [10, 15], [4, 5], [5, 2], [8, 13], [13, 14], [9, 6], [6, 11], [1, 6], [12, 9], [3, 7]]
+  .map(([a, b], n) => ({ a: cards[a], b: cards[b], n, fake: fake.includes(a) || fake.includes(b) }));
+const seats = Array.from({ length: 16 }, (_, i) => {
+  const angle = (i / 16) * Math.PI * 2 - Math.PI / 2;
+  return { i, x: 50 + 44 * Math.cos(angle), y: 50 + 44 * Math.sin(angle) };
+});
+const bottle = 'M31 8h18v40c0 12 15 18 15 38v94c0 8-5 12-12 12H28c-7 0-12-4-12-12V86c0-20 15-26 15-38z';
+const voteTotal = film.votes.rows.reduce((sum, row) => sum + row.value, 0);
+---
+<div class="film-stage f1" data-film="ep1" hidden>
+  <img class="film-portrait" src={film.portrait} alt="" />
+  <div class="film-board" aria-hidden="true">
+    <svg class="film-threads" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {threads.map((t) => (
+        <line
+          class:list={['film-thread', { fake: t.fake }]}
+          x1={t.a.x} y1={t.a.y} x2={t.b.x} y2={t.b.y}
+          pathLength="1"
+          style={`--n:${t.n}`}
+        />
+      ))}
+    </svg>
+    {cards.map((c) => (
+      <div class={`film-card tone-${c.tone}`} style={`--x:${c.x};--y:${c.y};--r:${c.r}deg;--i:${c.n}`}>
+        <div class="film-card-inner">
+          <div class="film-face">?</div>
+          <div class="film-face film-face-back">{c.label}</div>
+        </div>
+        {c.fake && <span class="film-stamp">{film.fakeLabel}</span>}
+      </div>
+    ))}
+  </div>
+
+  <div class="film-table" aria-hidden="true">
+    {seats.map((s) => <i class="film-seat" style={`--x:${s.x};--y:${s.y};--i:${s.i}`}></i>)}
+    <span class="film-table-mid">{film.tableWord}</span>
+  </div>
+
+  <div class="film-torch" aria-hidden="true"></div>
+
+  <div class="film-case" aria-hidden="true">
+    <svg class="film-bottle" viewBox="0 0 80 200">
+      <path d={bottle} />
+    </svg>
+    <p class="film-case-label">{film.caseLabel}</p>
+    <p class="film-case-title">{film.caseTitle}</p>
+    <p class="film-case-note">{film.caseNote}</p>
+  </div>
+
+  <div class="f1-scene f1-talk" aria-hidden="true">
+    <p class="f1-talk-words">
+      {film.talk.words.map((w, i) => <span style={`--i:${i}`}>{w}</span>)}
+    </p>
+    <p class="f1-talk-note">{film.talk.note}</p>
+  </div>
+
+  <div class="f1-scene f1-clock" aria-hidden="true">
+    <div class="f1-times">
+      <div class="f1-time">
+        <svg viewBox="0 0 80 200"><path d={bottle} /></svg>
+        <b>{film.clock.from.time}</b>
+        <span>{film.clock.from.label}</span>
+      </div>
+      <div class="f1-time f1-time-to">
+        <svg viewBox="0 0 80 200"><path d={bottle} /></svg>
+        <b>{film.clock.to.time}</b>
+        <span>{film.clock.to.label}</span>
+      </div>
+    </div>
+    <p class="f1-clock-note">{film.clock.note}</p>
+  </div>
+
+  <div class="f1-scene f1-line-up">
+    <div class="f1-chips" aria-hidden="true">
+      {film.suspects.map((s) => <span class="f1-chip">{s.role}</span>)}
+    </div>
+    <div class="f1-files">
+      {film.suspects.map((s, i) => (
+        <article class={`f1-file f1-file-${i}`}>
+          {s.figure
+            ? <img class="f1-fig" src={s.figure} alt="" />
+            : (
+              <svg class="f1-fig" viewBox="0 0 60 70" aria-hidden="true">
+                <circle cx="30" cy="22" r="14" />
+                <path d="M6 70c0-18 10-28 24-28s24 10 24 28z" />
+                <text x="30" y="28">?</text>
+              </svg>
+            )}
+          <p class="f1-file-no">{film.suspectLabel} {i + 1}</p>
+          <h3 class="f1-file-role">{s.title}</h3>
+          <ul class="f1-points">
+            {s.points.map((p, n) => <li style={`--i:${n}`}>{p}</li>)}
+          </ul>
+        </article>
+      ))}
+    </div>
+  </div>
+
+  <div class="f1-scene f1-clues">
+    <h3 class="f1-heading">{film.clues.title}</h3>
+    <dl class="f1-clue-list">
+      {film.clues.rows.map((row, i) => (
+        <div style={`--i:${i}`}>
+          <dt>{row.time}</dt>
+          <dd>{row.text}</dd>
+        </div>
+      ))}
+    </dl>
+    <p class="f1-fake">{film.fakeLabel}: {film.clues.fake}</p>
+  </div>
+
+  <div class="f1-scene f1-votes">
+    <h3 class="f1-heading">{film.votes.title}</h3>
+    <div class="f1-count">
+      {film.votes.rows.map((row, i) => (
+        <div class:list={{ culprit: row.culprit }} style={`--i:${i};--share:${(row.value / voteTotal) * 100}`}>
+          <span>{row.label}</span>
+          <i aria-hidden="true"></i>
+          <b>{row.value}</b>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="f1-scene f1-reveal">
+    <div class="f1-solution">
+      <article class="f1-card">
+        <p class="f1-card-kicker">{film.card.kicker}</p>
+        <dl>
+          {film.card.rows.map((row) => (
+            <div>
+              <dt>{row.key}</dt>
+              <dd class:list={{ secret: row.key === 'Tajemství' }}>{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <span class="f1-win" aria-hidden="true">{film.card.stamp}</span>
+      </article>
+      <ol class="f1-route">
+        {film.route.map((step, i) => (
+          <li style={`--i:${i}`}>
+            <time>{step.time}</time>
+            <span>{step.text}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+
+  <div class="f1-scene f1-design">
+    <h3 class="f1-heading">{film.design.title}</h3>
+    <ol class="f1-moves">
+      {film.design.moves.map((move, i) => (
+        <li class={`f1-move f1-move-${i}`}>
+          <b>{i + 1}</b>
+          <h4>{move.title}</h4>
+          <p>{move.text}</p>
+        </li>
+      ))}
+    </ol>
+    <div class="f1-results">
+      {film.design.results.map((r, i) => <p style={`--i:${i}`}><b>{r.value}</b> <span>{r.label}</span></p>)}
+    </div>
+  </div>
+
+  <div class="f1-scene f1-verdict">
+    <p class="f1-verdict-kicker">{film.verdict.kicker}</p>
+    <p class="f1-verdict-name">{film.verdict.name}</p>
+  </div>
+
+  <div class="film-end" hidden>
+    <p class="film-end-stamp">{film.endTitle}</p>
+    <div class="paper film-file">
+      <h3 class="paper-title">{film.revealTitle}</h3>
+      <dl class="brief">
+        {film.reveal.map((row) => (
+          <div>
+            <dt>{row.key}</dt>
+            <dd>{row.value ?? <Gap label={row.ask} />}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </div>
+</div>

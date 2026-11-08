@@ -1,0 +1,553 @@
+---
+import Gap from './Gap.astro';
+import EpisodePlayer from './EpisodePlayer.astro';
+import EpisodeFile from './EpisodeFile.astro';
+import {
+  scenes, coldOpen, brief, previously, episodes, civil, decision,
+  crewTitle, crewVoiceOver, crew, cards, honest, finale, contact, credits,
+} from '../data/mission';
+
+const slug = (n: number) => scenes[n - 1].slug;
+const ghost = (n: number) => String(n).padStart(2, '0');
+---
+<div id="journey" class="journey" inert>
+  <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="hud">
+    <span class="hud-name">Mise Kolis</span>
+    <span class="hud-scene" id="sceneLabel" aria-live="polite">Scéna 1/{scenes.length}</span>
+    <span class="hud-time" id="timecode" aria-hidden="true">00:00:00</span>
+  </header>
+
+  <div class="deck" id="deck">
+    <section class="scene scene-cold" id="scena-1" aria-label={scenes[0].title}>
+      <span class="ghost" aria-hidden="true">{ghost(1)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(1)}</p>
+        <ul class="cold-lines">
+          {coldOpen.lines.map((line, i) => <li class="rv" style={`--d:${300 + i * 950}ms`}>{line}</li>)}
+        </ul>
+        <p class="kicker rv" style="--d:3100ms">{coldOpen.kicker}</p>
+        <h1 class="hero-title rv rv-slam" style="--d:3250ms">
+          {coldOpen.title.map((line) => <span>{line}</span>)}
+        </h1>
+        <p class="hero-lead rv" style="--d:3800ms">{coldOpen.lead}</p>
+        <div class="hero-contact rv" style="--d:4200ms">
+          <a class="hero-cv" href="Jan-Kolator-CV.pdf" download>Stáhnout CV (PDF)</a>
+          <a href={`tel:${(contact.phone ?? '').replace(/\s/g, '')}`}>{contact.phone}</a>
+          <a href={`mailto:${contact.email}`}>{contact.email}</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scena-2" aria-label={scenes[1].title}>
+      <span class="ghost" aria-hidden="true">{ghost(2)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(2)}</p>
+        <div class="paper rv rv-paper" style="--d:120ms">
+          <div class="stamp" aria-hidden="true">Transparentní</div>
+          <h2 class="paper-title">{brief.title}</h2>
+          <figure class="clip-photo">
+            <img src="img/kolis-sako-b.webp" alt={finale.photoAlt} loading="lazy" />
+          </figure>
+          <dl class="brief">
+            {brief.rows.map((row) => (
+              <div>
+                <dt>{row.key}</dt>
+                <dd>
+                  {row.value}
+                  {row.key === 'Čas' && <> <a class="paper-link" href={`#scena-${scenes.length}`} data-goto={scenes.length}>Přeskočit do finále</a></>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scena-3" aria-label={scenes[2].title}>
+      <span class="ghost" aria-hidden="true">{ghost(3)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(3)}</p>
+        <h2 class="scene-title rv" style="--d:80ms">{previously.title}</h2>
+        <button type="button" class="play-all rv" style="--d:230ms" data-play="ep1">{previously.playAll}</button>
+        <div class="episodes">
+          {episodes.map((ep, i) => (
+            <article class="episode rv" style={`--d:${280 + i * 110}ms;--accent:${ep.accent}`}>
+              <header class="slate">
+                <span>{ep.code}</span>
+                <span class="slate-stripes" aria-hidden="true"></span>
+              </header>
+              <p class="episode-genre">{ep.genre}</p>
+              <h3>{ep.title}</h3>
+              <p class="episode-logline">{ep.logline}</p>
+              <div class="episode-actions">
+                <button type="button" class="episode-play" data-play={ep.film}>▶ Přehrát díl</button>
+                <button type="button" class="episode-file" data-spis={ep.film}>Spis dílu</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scena-4" aria-label={scenes[3].title}>
+      <span class="ghost" aria-hidden="true">{ghost(4)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(4)}</p>
+        <h2 class="scene-title rv" style="--d:80ms">{civil.title}</h2>
+        <div class="civil">
+          <ol class="civil-roles">
+            {civil.roles.map((r, i) => (
+              <li class="civil-role rv" style={`--d:${280 + i * 120}ms`}>
+                <p class="civil-years">{r.years}</p>
+                <div>
+                  <h3>{r.role} <span class="civil-field">· {r.field}</span></h3>
+                  <p class="civil-org">{r.org}</p>
+                  <p class="civil-what">{r.what}</p>
+                  {r.mission && <p class="civil-mission"><strong>{civil.missionLabel}:</strong> {r.mission}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+          <aside class="paper civil-file rv rv-paper" style="--d:420ms">
+            <div class="stamp" aria-hidden="true">{civil.file.stamp}</div>
+            <h3 class="paper-title">{civil.file.title}</h3>
+            <dl class="brief">
+              {civil.file.rows.map((row) => (
+                <div>
+                  <dt>{row.key}</dt>
+                  <dd>{row.lines.map((line) => <span class="civil-line">{line}</span>)}</dd>
+                </div>
+              ))}
+            </dl>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene scene-rain" id="scena-5" aria-label={scenes[4].title}>
+      <span class="rain" aria-hidden="true"></span>
+      <span class="ghost" aria-hidden="true">{ghost(5)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(5)}</p>
+        <p class="decision-time rv" style="--d:80ms">{decision.time.slice(0, 2)}<i>:</i>{decision.time.slice(3)}</p>
+        <h2 class="scene-title decision-title rv" style="--d:220ms">{decision.situation}</h2>
+        <div class="choices rv" id="choices" style="--d:380ms">
+          {decision.choices.map((c) => (
+            <button type="button" class="choice" data-reaction={c.reaction}>{c.label}</button>
+          ))}
+        </div>
+        <div class="decision-result" id="decisionResult" hidden>
+          <p class="decision-reaction" id="decisionReaction" aria-live="polite"></p>
+          <div class="decision-real">
+            <p class="story-title">{decision.story.title}</p>
+            <p class="story-intro">{decision.story.intro}</p>
+            <ol class="story">
+              {decision.story.beats.map((b, i) => (
+                <li style={`--i:${i}`}>
+                  <span class="story-label">{b.label}</span>
+                  {b.text}
+                </li>
+              ))}
+            </ol>
+            <p class="story-outcome">{decision.story.outcome}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scena-6" aria-label={scenes[5].title}>
+      <span class="ghost" aria-hidden="true">{ghost(6)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(6)}</p>
+        <h2 class="scene-title rv" style="--d:80ms">{crewTitle}</h2>
+        <p class="vo rv" style="--d:160ms"><span class="vo-who">Kolis (V.O.)</span>{crewVoiceOver}</p>
+        <div class="rv" style="--d:260ms">
+          <div class="tabs" role="tablist" aria-label="Složky štábu">
+            {crew.map((c, i) => (
+              <button
+                type="button"
+                role="tab"
+                class="tab"
+                id={`tab-${c.id}`}
+                aria-controls={`panel-${c.id}`}
+                aria-selected={i === 0 ? 'true' : 'false'}
+                tabindex={i === 0 ? 0 : -1}
+              ><span class="tab-ch">Kanál {i + 1}</span>{c.name}</button>
+            ))}
+          </div>
+          {crew.map((c, i) => (
+            <div role="tabpanel" class="tab-panel crew-desk" id={`panel-${c.id}`} aria-labelledby={`tab-${c.id}`} hidden={i !== 0}>
+              <ul>
+                {c.items.map((item) => <li>{item}</li>)}
+              </ul>
+              <div class="crew-sheet">
+                <p class="crew-sheet-kicker">Ukázka</p>
+                <h3 class="crew-sheet-title">{c.doc.title}</h3>
+                {c.doc.map && (
+                  <svg class="crew-map" viewBox="0 0 240 70" aria-hidden="true">
+                    <path class="crew-map-land" d="M0 52Q40 40 84 50T168 44 240 54V70H0Z" />
+                    <path class="crew-map-path" d="M14 54C52 22 78 60 112 38S178 16 226 30" />
+                    <circle class="crew-map-dot" cx="14" cy="54" r="4" />
+                    <path class="crew-map-x" d="M107 33l10 10M117 33l-10 10" />
+                    <circle class="crew-map-dot" cx="226" cy="30" r="4" />
+                  </svg>
+                )}
+                <dl class="crew-sheet-rows">
+                  {c.doc.rows.map((r) => <div><dt>{r.key}</dt><dd>{r.value}</dd></div>)}
+                </dl>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scena-7" aria-label={scenes[6].title}>
+      <span class="ghost" aria-hidden="true">{ghost(7)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(7)}</p>
+        <h2 class="scene-title rv" style="--d:80ms">{cards.title}</h2>
+        <p class="vo rv" style="--d:180ms"><span class="vo-who">Kolis (V.O.)</span>{cards.voiceOver}</p>
+        <div class="honest rv" style="--d:300ms">
+          {honest.map((row) => (
+            <div class="honest-row">
+              <span class="honest-need">{row.need}</span>
+              <span class="honest-proof">{row.proof ?? <Gap label="důkaz, nebo poctivé „zatím ne“" />}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="scene scene-finale" id="scena-8" aria-label={scenes[7].title}>
+      <div class="finale-hall" aria-hidden="true">
+        <i class="finale-beam finale-beam-a"></i>
+        <i class="finale-beam finale-beam-b"></i>
+        {Array.from({ length: 22 }, (_, i) => <b class="finale-spark" style={`--x:${(i * 47) % 100};--i:${i % 11};--s:${1 + (i % 3)}`}></b>)}
+      </div>
+      <span class="ghost" aria-hidden="true">{ghost(8)}</span>
+      <div class="scene-inner">
+        <p class="slug rv">{slug(8)}</p>
+        <h2 class="scene-title finale-title rv rv-slam" style="--d:80ms">{finale.title}</h2>
+        <div class="finale-board">
+          <article class="finale-ballot rv" id="voteBallot" style="--d:400ms">
+            <div class="vote-burst" aria-hidden="true">
+              {Array.from({ length: 48 }, (_, i) => <i style={`--a:${i * 7.5}deg;--i:${i % 5};--r:${26 + ((i * 17) % 34)}vmin`}></i>)}
+            </div>
+            <figure class="clip-photo finale-photo">
+              <img src={finale.photo} alt={finale.photoAlt} loading="lazy" />
+            </figure>
+            <p class="finale-kicker">{finale.ballot.kicker}</p>
+            <h3 class="finale-name">{finale.ballot.name}</h3>
+            <p class="finale-role">{finale.ballot.role}</p>
+            <div class="finale-letter">
+              <p class="finale-kicker">{finale.letter.kicker}</p>
+              <p>{finale.letter.text}</p>
+              <p class="finale-sign">{finale.letter.sign}</p>
+            </div>
+            <div class="vote-stage" id="voteStage">
+              <button type="button" class="vote vote-yes" id="voteYes">Pozvat na pohovor</button>
+              <button type="button" class="vote vote-no" id="voteNo" data-taunts={JSON.stringify(finale.taunts)} data-gave-up={finale.gaveUp}>{finale.taunts[0]}</button>
+            </div>
+            <p class="finale-decided" aria-live="polite">{finale.decided}</p>
+          </article>
+          <div class="finale-proofs">
+            <p class="finale-kicker rv" style="--d:520ms">{finale.proofTitle}</p>
+            <div class="finale-proof-grid">
+              {finale.proofs.map((p, i) => (
+                <button type="button" class="finale-proof rv" data-play={p.play} style={`--d:${600 + i * 110}ms`}>
+                  <span class="finale-proof-code">{p.code}</span>
+                  <b>{p.title}</b>
+                  <span>{p.note}</span>
+                  <em>{finale.replay}</em>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div class="hero-contact finale-contact rv" style="--d:1050ms">
+          <a class="hero-cv" href="Jan-Kolator-CV.pdf" download>Stáhnout CV (PDF)</a>
+          <a href={`tel:${(contact.phone ?? '').replace(/\s/g, '')}`}>{contact.phone}</a>
+          <a href={`mailto:${contact.email}`}>{contact.email}</a>
+        </div>
+        <button type="button" class="relock" id="relock">Zhasnout a zkusit zámek znovu</button>
+      </div>
+    </section>
+  </div>
+
+  <nav class="deck-nav" aria-label="Scény">
+    <button type="button" class="more-cue" id="moreCue" hidden><span>Pokračuje níž ↓</span></button>
+    <button type="button" class="nav-btn nav-prev" id="prevScene" aria-label="Předchozí scéna">←</button>
+    <div class="strip">
+      {scenes.map((s) => (
+        <button type="button" class="strip-seg" data-goto={s.id} aria-label={`Scéna ${s.id}: ${s.title}`}><i></i></button>
+      ))}
+    </div>
+    <button type="button" class="nav-btn nav-next" id="nextScene">
+      <span class="nav-next-label">Další: <span id="nextTitle"></span></span>
+      <span class="nav-next-short">Další</span>
+      <span aria-hidden="true">→</span>
+    </button>
+  </nav>
+
+  <EpisodeFile />
+  <EpisodePlayer />
+</div>
+
+<script>
+  import { scenes as sceneData } from '../data/mission';
+  import { setScene, setLevel, cue, type SceneMood } from '../lib/score';
+
+  // One mood per scene, in the order of the script: night, office, montage, lab, rain, morning, the quiet room, the hall.
+  const sceneMoods: SceneMood[] = ['cold', 'brief', 'montage', 'lab', 'rain', 'crew', 'table', 'finale'];
+
+  const root = document.documentElement;
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const deck = document.getElementById('deck') as HTMLElement;
+  const scenes = [...deck.querySelectorAll<HTMLElement>('.scene')];
+  const ghosts = scenes.map((s) => s.querySelector<HTMLElement>('.ghost'));
+  const label = document.getElementById('sceneLabel')!;
+  const prev = document.getElementById('prevScene') as HTMLButtonElement;
+  const next = document.getElementById('nextScene') as HTMLButtonElement;
+  const nextTitle = document.getElementById('nextTitle')!;
+  const segs = [...document.querySelectorAll<HTMLElement>('.strip-seg')];
+  let active = -1;
+  let started = false;
+
+  function setActive(i: number) {
+    if (i === active) return;
+    active = i;
+    scenes.forEach((s, n) => {
+      s.inert = n !== i;
+      if (started && n === i) s.classList.add('seen');
+    });
+    segs.forEach((s, n) => {
+      s.classList.toggle('done', n <= i);
+      s.setAttribute('aria-current', n === i ? 'step' : 'false');
+    });
+    label.textContent = `Scéna ${i + 1}/${scenes.length}`;
+    prev.disabled = i === 0;
+    next.hidden = i === scenes.length - 1;
+    if (i < scenes.length - 1) nextTitle.textContent = sceneData[i + 1].title;
+    if (started) {
+      history.replaceState(null, '', `#scena-${i + 1}`);
+      setScene(sceneMoods[i]);
+    }
+    if (i > 0) next.classList.remove('nudge');
+    updateMore();
+  }
+
+  // On a phone a scene can be taller than the screen, so it says so and a tap moves on down.
+  const moreCue = document.getElementById('moreCue') as HTMLButtonElement;
+  function updateMore() {
+    const scene = scenes[active];
+    if (!scene || !moreCue) return;
+    moreCue.hidden = scene.scrollHeight - scene.clientHeight - scene.scrollTop < 24;
+  }
+  moreCue.addEventListener('click', () => {
+    scenes[active]?.scrollBy({ top: scenes[active].clientHeight * 0.7, behavior: calm ? 'auto' : 'smooth' });
+  });
+  scenes.forEach((scene) => {
+    scene.addEventListener('scroll', updateMore, { passive: true });
+    const inner = scene.querySelector('.scene-inner');
+    if (inner) new ResizeObserver(updateMore).observe(inner);
+  });
+  addEventListener('resize', updateMore);
+
+  function goTo(i: number, instant = false) {
+    const target = Math.max(0, Math.min(scenes.length - 1, i));
+    deck.scrollTo({ left: target * deck.clientWidth, behavior: instant || calm ? 'auto' : 'smooth' });
+  }
+
+  // Scroll position is the single source of truth, so swipes, keys and buttons all agree.
+  let ticking = false;
+  deck.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const w = deck.clientWidth;
+      setActive(Math.round(deck.scrollLeft / w));
+      if (!calm) {
+        ghosts.forEach((g, n) => {
+          if (g) g.style.transform = `translate3d(${(scenes[n].offsetLeft - deck.scrollLeft) * 0.35}px, 0, 0)`;
+        });
+      }
+    });
+  }, { passive: true });
+
+  prev.addEventListener('click', () => goTo(active - 1));
+  next.addEventListener('click', () => goTo(active + 1));
+  document.addEventListener('click', (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-goto]');
+    if (!el) return;
+    e.preventDefault();
+    goTo(Number(el.dataset.goto) - 1);
+  });
+
+  addEventListener('keydown', (e) => {
+    if (!started || root.classList.contains('playing') || document.querySelector('dialog[open]') || (e.target as HTMLElement).closest?.('[role="tab"]')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); goTo(active + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(active - 1); }
+  });
+
+  // A vertical wheel moves between scenes once the scene itself has nowhere left to scroll.
+  let lastStep = 0;
+  deck.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const s = scenes[active];
+    const down = e.deltaY > 0;
+    const canScroll = down ? s.scrollTop + s.clientHeight < s.scrollHeight - 1 : s.scrollTop > 0;
+    if (canScroll) return;
+    e.preventDefault();
+    const now = performance.now();
+    if (Math.abs(e.deltaY) < 12 || now - lastStep < 900) return;
+    lastStep = now;
+    goTo(active + (down ? 1 : -1));
+  }, { passive: false });
+
+  addEventListener('resize', () => goTo(active, true));
+
+  function start() {
+    started = true;
+    // After the lock the story always begins at scene 1, even from a link with a saved #scena-N.
+    goTo(0, true);
+    active = -1;
+    setActive(0);
+    if (!calm) setTimeout(() => { if (active === 0) next.classList.add('nudge'); }, 5200);
+
+    const tc = document.getElementById('timecode')!;
+    const began = performance.now();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setInterval(() => {
+      const t = (performance.now() - began) / 1000;
+      tc.textContent = `${pad(Math.floor(t / 60))}:${pad(Math.floor(t % 60))}:${pad(Math.floor((t % 1) * 25))}`;
+    }, 80);
+  }
+
+  setActive(0);
+  addEventListener('mission:open', start, { once: true });
+
+  // Decision
+  const choices = document.getElementById('choices');
+  const result = document.getElementById('decisionResult');
+  const reaction = document.getElementById('decisionReaction');
+  choices?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.choice');
+    if (!btn || !result || !reaction) return;
+    choices.querySelectorAll('.choice').forEach((c) => c.classList.toggle('picked', c === btn));
+    reaction.textContent = btn.dataset.reaction ?? '';
+    setLevel(1);
+    result.hidden = false;
+    // The clock shrinks to make room; on a phone the story is taller than the screen, so bring its start into view.
+    result.closest('.scene')?.classList.add('decided');
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    result.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
+  });
+
+  // Crew tabs
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+  function selectTab(tab: HTMLButtonElement, focus = false) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(t.getAttribute('aria-controls') ?? '');
+      if (panel) panel.hidden = !on;
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') selectTab(tabs[(i + 1) % tabs.length], true);
+      if (e.key === 'ArrowLeft') selectTab(tabs[(i - 1 + tabs.length) % tabs.length], true);
+    });
+  });
+
+  // The vote button that does not want to be pressed
+  const ballot = document.getElementById('voteBallot');
+  const no = document.getElementById('voteNo') as HTMLButtonElement | null;
+  const yes = document.getElementById('voteYes');
+  const taunts: string[] = JSON.parse(no?.dataset.taunts ?? '[]');
+  let escapes = 0;
+  const GIVE_UP_AFTER = taunts.length;
+  const burst = ballot?.querySelector<HTMLElement>('.vote-burst');
+  function cheer() {
+    if (!ballot) return;
+    // The confetti flies out of the button itself.
+    const from = yes?.getBoundingClientRect();
+    const box = ballot.getBoundingClientRect();
+    if (from && burst) {
+      burst.style.left = `${from.left + from.width / 2 - box.left}px`;
+      burst.style.top = `${from.top + from.height / 2 - box.top}px`;
+    }
+    ballot.classList.remove('cheer');
+    void ballot.offsetWidth;
+    ballot.classList.add('cheer');
+    cue('power');
+  }
+  // It may fly anywhere on the screen, but stays clear of the bars and of the button we want pressed.
+  function dodge() {
+    if (!no || escapes >= GIVE_UP_AFTER) return;
+    escapes += 1;
+    if (escapes === GIVE_UP_AFTER) {
+      no.style.transform = '';
+      no.textContent = no.dataset.gaveUp ?? '';
+      no.classList.add('gave-up');
+      ballot?.classList.add('decided');
+      cheer();
+      return;
+    }
+    no.textContent = taunts[escapes];
+    cue('letter', escapes);
+    const now = no.getBoundingClientRect();
+    const moved = new DOMMatrix(getComputedStyle(no).transform);
+    const baseX = now.left - moved.m41;
+    const baseY = now.top - moved.m42;
+    const avoid = yes?.getBoundingClientRect();
+    const maxX = Math.max(14, innerWidth - now.width - 14);
+    const maxY = Math.max(64, innerHeight - now.height - 76);
+    let x = now.left;
+    let y = now.top;
+    for (let tries = 0; tries < 12; tries += 1) {
+      x = 14 + Math.random() * (maxX - 14);
+      y = 64 + Math.random() * (maxY - 64);
+      const far = Math.hypot(x - now.left, y - now.top) > Math.min(innerWidth, innerHeight) * 0.35;
+      const clear = !avoid || x > avoid.right + 10 || x + now.width < avoid.left - 10 || y > avoid.bottom + 10 || y + now.height < avoid.top - 10;
+      if (far && clear) break;
+    }
+    const spin = Math.round(Math.random() * 24 - 12);
+    no.style.transform = `translate(${x - baseX}px, ${y - baseY}px) rotate(${spin}deg)`;
+  }
+  no?.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') dodge(); });
+  no?.addEventListener('click', dodge);
+  yes?.addEventListener('click', cheer);
+
+  // Replay the lock
+  document.getElementById('relock')?.addEventListener('click', () => {
+    history.replaceState(null, '', location.pathname);
+    location.reload();
+  });
+
+  // The torch stays with the reader on desktop
+  const glow = document.getElementById('cursorGlow');
+  if (glow && matchMedia('(pointer: fine)').matches && !calm) {
+    addEventListener('pointermove', (e) => {
+      glow.style.transform = `translate3d(${e.clientX - 300}px, ${e.clientY - 300}px, 0)`;
+      glow.style.opacity = '1';
+    }, { passive: true });
+  }
+
+  // Dev only: how much is still missing
+  if (import.meta.env.DEV) {
+    const count = document.querySelectorAll('#journey .gap').length;
+    const chip = document.createElement('div');
+    chip.className = 'dev-chip';
+    chip.textContent = `Mezery: ${count}`;
+    document.body.appendChild(chip);
+  }
+</script>
