@@ -609,7 +609,7 @@ export const honest = [
   },
   {
     need: 'Znalost struktury štábu',
-    proof: 'Základní představa z toho jednoho dne: kdo za co odpovídá a na koho navazuje. Štáb jsem nikdy nevedl, tohle se doučím.' as string | null,
+    proof: 'Základní představa z toho jednoho dne: kdo za co odpovídá a na koho navazuje. Štáb jsem nikdy nevedl, tohle se doučím. Vedl jsem ale týmy ve firmě a na projektech.' as string | null,
   },
   {
     need: 'Briefy a pravidla pro hráče',
@@ -621,7 +621,7 @@ export const honest = [
   },
   {
     need: 'Přirozená autorita a klid',
-    proof: 'Když vedoucí panikaří, přenese to na děti, takže komplikace řeším tak, aby je nepoznaly. Když se pode mnou v lese rozpadla nosítka, zůstal jsem v roli.' as string | null,
+    proof: 'Když vedoucí či projektový manažer panikaří, přenese to na děti nebo na svůj tým, takže komplikace řeším tak, aby je nepoznaly. Když se pode mnou v lese rozpadla nosítka, zůstal jsem v roli.' as string | null,
   },
 ];
 

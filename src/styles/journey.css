@@ -79,8 +79,10 @@ html, body { height: 100%; overflow: hidden; }
   z-index: 1;
   width: min(1040px, 100%);
   margin: auto;
-  padding: clamp(20px, 4vh, 44px) 20px;
+  padding: clamp(20px, 4vh, 44px) 20px 84px;
 }
+/* The opening scene ends at the left, clear of the button, and should fit one screen. */
+#scena-1 .scene-inner { padding-bottom: 20px; }
 .ghost {
   position: absolute;
   right: 2vw;
@@ -663,7 +665,22 @@ html.opened .scene:not(.seen) .rv-paper { transform: translateX(60px) rotate(2.5
 }
 .nav-btn:hover:not(:disabled) { border-color: var(--torch); color: var(--torch); }
 .nav-btn:disabled { opacity: .3; cursor: default; }
-.nav-next { order: 3; border-color: var(--torch); color: var(--torch); }
+/* Floats above the bar, so it is clear at first sight that more scenes follow */
+.nav-next {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 14px);
+  z-index: 1;
+  min-height: 48px;
+  padding: 0 18px;
+  border-color: var(--torch);
+  background: var(--torch);
+  color: var(--paper-ink);
+  font-weight: 600;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .6), 0 0 0 4px rgba(244, 193, 93, .16);
+}
+.nav-next:hover:not(:disabled) { border-color: #ffd98c; background: #ffd98c; color: var(--paper-ink); }
+.nav-next:focus-visible { outline: 2px solid var(--chalk); outline-offset: 3px; }
 .nav-next[hidden] { display: none; }
 .nav-next.nudge { animation: nudge 1.6s ease-in-out infinite; }
 @keyframes nudge {
